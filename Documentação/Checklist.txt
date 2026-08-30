@@ -1,0 +1,23 @@
+
+   Enums
+	NivelAcesso [x].
+
+  Administrador
+	Entity [x].
+	Dtos [ ].
+	Controllers [x].
+	Mappers [ ].
+	Service [x].
+	Repository [x].
+
+   Barbeiro
+	Entity [x].
+	Dtos [x].
+	Controllers [ ].
+	Mappers [x].
+	Service [x].
+	Repository [x].
+
+ -Cadastro de Barbeiro
+	Service [x].
+	Controller [ ].
