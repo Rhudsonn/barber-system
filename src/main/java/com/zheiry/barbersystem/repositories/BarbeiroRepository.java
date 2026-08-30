@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BarbeiroRepository extends JpaRepository<BarbeiroEntity, Long> {
 
+    boolean existsByEmail(String email);
+    boolean existsByTelefone(String telefone);
 
 
 }
