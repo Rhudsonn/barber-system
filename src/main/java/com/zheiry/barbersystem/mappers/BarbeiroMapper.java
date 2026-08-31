@@ -1,7 +1,7 @@
 package com.zheiry.barbersystem.mappers;
 
-import com.zheiry.barbersystem.dtos.BarbeiroDto;
-import com.zheiry.barbersystem.dtos.BarbeiroSaidaDto;
+import com.zheiry.barbersystem.dto.BarbeiroDto;
+import com.zheiry.barbersystem.dto.BarbeiroSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 
 public class BarbeiroMapper {

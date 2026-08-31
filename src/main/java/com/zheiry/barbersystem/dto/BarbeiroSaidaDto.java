@@ -1,6 +1,4 @@
-package com.zheiry.barbersystem.dtos;
-
-import com.zheiry.barbersystem.enums.NivelAcesso;
+package com.zheiry.barbersystem.dto;
 
 import java.time.LocalDate;
 

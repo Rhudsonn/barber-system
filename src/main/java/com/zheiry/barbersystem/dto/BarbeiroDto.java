@@ -1,4 +1,4 @@
-package com.zheiry.barbersystem.dtos;
+package com.zheiry.barbersystem.dto;
 
 import jakarta.validation.constraints.*;
 
