@@ -4,6 +4,7 @@ import com.zheiry.barbersystem.dtos.BarbeiroDto;
 import com.zheiry.barbersystem.dtos.BarbeiroSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.enums.NivelAcesso;
+import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.exception.DuplicateResourceException;
 import com.zheiry.barbersystem.mappers.BarbeiroMapper;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
@@ -49,6 +50,9 @@ public class BarbeiroService {
 
         // REGRA DE NEGÓCIO: Define por padrão o perfil do usuário como BARBEIRO
         entity.setNivelAcesso(NivelAcesso.BARBEIRO);
+
+        // REGRA DE NEGÓCIO: Define por padrão o perfil do usuário como ATIVO
+        entity.setStatus(Status.ATIVO);
 
         // PERSISTÊNCIA: Grava o novo barbeiro no banco de dados e recupera a entidade salva (com ID gerado)
         BarbeiroEntity saved = repository.save(entity);

@@ -1,6 +1,7 @@
 package com.zheiry.barbersystem.entities;
 
 import com.zheiry.barbersystem.enums.NivelAcesso;
+import com.zheiry.barbersystem.enums.Status;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -38,12 +39,15 @@ public class BarbeiroEntity {
     @Enumerated(EnumType.STRING)
     private NivelAcesso nivelAcesso;
 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
 
     public BarbeiroEntity() {
     }
 
-
-    public BarbeiroEntity(Long id, String nome, LocalDate dataNascimento, String telefone, String especialidade, String email, String senha, NivelAcesso nivelAcesso) {
+    public BarbeiroEntity(Long id, String nome, LocalDate dataNascimento, String telefone, String especialidade, String email, String senha, NivelAcesso nivelAcesso, Status status) {
         this.id = id;
         this.nome = nome;
         this.dataNascimento = dataNascimento;
@@ -52,6 +56,7 @@ public class BarbeiroEntity {
         this.email = email;
         this.senha = senha;
         this.nivelAcesso = nivelAcesso;
+        this.status = status;
     }
 
     public Long getId() {
@@ -116,5 +121,13 @@ public class BarbeiroEntity {
 
     public void setNivelAcesso(NivelAcesso nivelAcesso) {
         this.nivelAcesso = nivelAcesso;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
     }
 }
