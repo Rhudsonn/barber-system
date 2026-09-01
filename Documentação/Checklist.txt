@@ -21,3 +21,6 @@
  -Cadastro de Barbeiro
 	Service [x].
 	Controller [ ].
+
+	- Configuração do Banco [x].
+	Implementar Controle de sessao do Spring para iniciar os testes.
