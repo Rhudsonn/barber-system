@@ -1,12 +1,11 @@
 package com.zheiry.barbersystem.mappers;
 
+
+
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
-import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
-import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
-import com.zheiry.barbersystem.entities.ClienteEntity;
 
 import java.util.List;
 

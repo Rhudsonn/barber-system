@@ -13,6 +13,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class BarbeiroService {
 
@@ -69,5 +71,33 @@ public class BarbeiroService {
         // RETORNO: Converte a entidade salva para o DTO de saída e o retorna para a camada superior (Controller)
         return BarbeiroMapper.toSaidaDto(saved);
     }
+
+
+
+
+    public List<BarbeiroSaidaDto> listaBarbeirosPorStatus(Status status){
+        // Busca no banco os barbeiros que possuem o status informado.
+        // Pode ser ATIVO ou INATIVO.
+        List<BarbeiroEntity> barbeiros = repository.findByStatus(status);
+        // Envia a lista de Entities para o Mapper,
+        // que converte cada Entity em um BarbeiroSaidaDto.
+        return BarbeiroMapper.toSaidaDtoList(barbeiros);
+    }
+
+    public List<BarbeiroSaidaDto> listaBarbeirosAtivos(){
+        // Reaproveita o método anterior,
+        // informando que queremos somente barbeiros ATIVOS.
+        return listaBarbeirosPorStatus(Status.ATIVO);
+    }
+
+    public List<BarbeiroSaidaDto> listaBarbeirosInativos(){
+        // Reaproveita o método anterior,
+        // informando que queremos somente barbeiros INATIVOS.
+        return listaBarbeirosPorStatus(Status.INATIVO);
+    }
+
+
+
+
 
 }
