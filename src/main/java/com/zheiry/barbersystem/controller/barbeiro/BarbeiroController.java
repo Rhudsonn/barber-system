@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.controller.barbeiro;
 
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
 import com.zheiry.barbersystem.services.BarbeiroService;
@@ -36,6 +37,23 @@ public class BarbeiroController {
     @GetMapping("/lista/inativos")
     public ResponseEntity<List<BarbeiroSaidaDto>> listaBarbeirosInativos(){
         return ResponseEntity.ok(service.listaBarbeirosInativos());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<BarbeiroSaidaDto>> buscarPorNome(@RequestParam String nome){
+        return ResponseEntity.ok(service.buscarPorNome(nome));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BarbeiroSaidaDto> buscarPorId(@PathVariable Long id){
+        return ResponseEntity.ok(service.buscarBarbeiroPorId(id));
+    }
+
+
+    //Não atualizo todos os dados, pode ser atualizado os campos que quiser.
+    @PatchMapping("/{id}")
+    public ResponseEntity<BarbeiroSaidaDto> atualizarInformacoes(@PathVariable Long id, @RequestBody @Valid BarbeiroAtualizaDto dto){
+        return ResponseEntity.ok(service.atualizarInformacoesBarbeiro(id, dto));
     }
 
 

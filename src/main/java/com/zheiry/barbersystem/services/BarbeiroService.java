@@ -1,11 +1,13 @@
 package com.zheiry.barbersystem.services;
 
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.exception.DuplicateResourceException;
+import com.zheiry.barbersystem.exception.ResourceNotFoundException;
 import com.zheiry.barbersystem.mappers.BarbeiroMapper;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
 import com.zheiry.barbersystem.exception.BadRequestException;
@@ -94,6 +96,54 @@ public class BarbeiroService {
         // Reaproveita o método anterior,
         // informando que queremos somente barbeiros INATIVOS.
         return listaBarbeirosPorStatus(Status.INATIVO);
+    }
+
+
+    public List<BarbeiroSaidaDto> buscarPorNome(String nome){
+
+        // Recebe o nome que será utilizado na pesquisa.
+        // "Containing" = contém o texto.
+        // "IgnoreCase" = ignora diferença entre maiúsculas e minúsculas.
+        List<BarbeiroEntity> barbeiros = repository.findByNomeContainingIgnoreCase(nome);
+
+        // A lista de Entities encontrada no banco é enviada
+        // para o Mapper.
+        // O Mapper converte
+        return BarbeiroMapper.toSaidaDtoList(barbeiros);
+    }
+
+
+    public BarbeiroSaidaDto buscarBarbeiroPorId(Long id){
+        // Valida se existe, se não existir lança uma excesao
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        // Converte a Entity encontrada para o DTO de saída.
+        return BarbeiroMapper.toSaidaDto(barbeiro);
+    }
+
+
+    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto){
+
+        //Busco o barbeiro pelo id se nao existir laco excessao.
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+
+        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)){
+            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
+        }
+
+
+        // Verifica se o telefone ja pertence a outro usuario.
+        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)){
+            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
+        }
+
+        // Mapper atualiza os dados da Entity
+        BarbeiroMapper.atualizarEntity(dto, barbeiro);
+
+        // Salva as alterações
+        repository.save(barbeiro);
+
+        // Converte Entity para DTO de saída
+        return BarbeiroMapper.toSaidaDto(barbeiro);
     }
 
 

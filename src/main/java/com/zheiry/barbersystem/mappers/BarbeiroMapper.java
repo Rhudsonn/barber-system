@@ -82,11 +82,22 @@ public class BarbeiroMapper {
             return;
         }
 
-        entity.setNome(dto.nome());
-        entity.setDataNascimento(dto.dataNascimento());
-        entity.setTelefone(dto.telefone());
-        entity.setEspecialidade(dto.especialidade());
-        entity.setEmail(dto.email());
+        //Pode atualizar campo que quiser nao vai ser obrigatorio atualizar tudo.
+        if (dto.nome() != null) {
+            entity.setNome(dto.nome());
+        }
+        if (dto.dataNascimento() != null) {
+            entity.setDataNascimento(dto.dataNascimento());
+        }
+        if (dto.telefone() != null) {
+            entity.setTelefone(dto.telefone());
+        }
+        if (dto.especialidade() != null) {
+            entity.setEspecialidade(dto.especialidade());
+        }
+        if (dto.email() != null) {
+            entity.setEmail(dto.email());
+        }
     }
 
 
