@@ -1,0 +1,22 @@
+
+
+Listar os metodos que utilizei no mapper - e estudar melhor eles.
+
+No mapper devo seguir a seguinte estrutura:
+
+	toEntity (criação)
+	toSaidaDto (exposição da API)
+	atualizarEntity (aplica em cima da entity ja existente)
+
+Sobre a senha é melhor tratar depois pelo service...............
+   toEntity (Dto de entrada → Entity)
+   Usado só na criação. Aqui você não deve colocar a senha em texto puro — ou você recebe o    encoder como parâmetro, ou (melhor ainda) o Service faz o encode e seta depois:
+
+Bloco final de comentário sobre AlteraSenhaDto — mesmo não tendo código, deixei documentado o motivo da ausência. Isso é importante em produção: evita que um colega de equipe (ou você no futuro) "complete" o mapper achando que esqueceram de implementar esse método.
+   
+
+   OBS - Alteração de senha não fica no mapper, 
+
+??? public static List<BarbeiroSaidaDto> toSaidaDtoList(List<Barbeiro> entities) { ... }
+	
+	
