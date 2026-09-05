@@ -1,6 +1,7 @@
 package com.zheiry.barbersystem.entities;
 
 import com.zheiry.barbersystem.enums.NivelAcesso;
+import com.zheiry.barbersystem.enums.Status;
 import jakarta.persistence.*;
 
 @Entity
@@ -27,17 +28,23 @@ public class AdministradorEntity {
     @Enumerated(EnumType.STRING)
     private NivelAcesso nivelAcesso;
 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+
 
     public AdministradorEntity() {
     }
 
-    public AdministradorEntity(Long id, String nome, String telefone, String email, String senha, NivelAcesso nivelAcesso) {
+    public AdministradorEntity(Long id, String nome, String telefone, String email, String senha, NivelAcesso nivelAcesso, Status status) {
         this.id = id;
         this.nome = nome;
         this.telefone = telefone;
         this.email = email;
         this.senha = senha;
         this.nivelAcesso = nivelAcesso;
+        this.status = status;
     }
 
     public Long getId() {
@@ -86,5 +93,13 @@ public class AdministradorEntity {
 
     public void setNivelAcesso(NivelAcesso nivelAcesso) {
         this.nivelAcesso = nivelAcesso;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
     }
 }

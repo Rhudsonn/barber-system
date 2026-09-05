@@ -1,8 +1,14 @@
 package com.zheiry.barbersystem.mappers;
 
-import com.zheiry.barbersystem.dto.BarbeiroDto;
-import com.zheiry.barbersystem.dto.BarbeiroSaidaDto;
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
+import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
+import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
+import com.zheiry.barbersystem.entities.ClienteEntity;
+
+import java.util.List;
 
 public class BarbeiroMapper {
 
@@ -27,32 +33,72 @@ public class BarbeiroMapper {
         entity.setEspecialidade(dto.especialidade());
         entity.setEmail(dto.email());
 
-        //Falta emplementa criptografia da senha.......
-        // Atribui a senha (na camada de Service, você criptografará essa senha antes do save)
-        entity.setSenha(dto.senha());
+        // entity.setSenha(...) -> propositalmente NÃO feito aqui.
+        // O Service deve fazer: entity.setSenha(passwordEncoder.encode(dto.getSenha()));
 
         return entity;
     }
 
 
     // Entity - Dto
-    // Converte a Entidade vinda do banco de dados (BarbeiroEntity) para o DTO (BarbeiroDto)
+    // Converte a Entidade vinda do banco de dados (BarbeiroEntity) para o DTO (BarbeiroSaidaDto)
     // que será exibido na tela HTML/Thymeleaf.
     // @param entity Objeto recuperado do banco de dados.
     // @return DTO formatado para a visualização na camada de apresentação.
-    public static BarbeiroSaidaDto toDto(BarbeiroEntity entity){
+    public static BarbeiroSaidaDto toSaidaDto(BarbeiroEntity entity){
 
         // Proteção contra NullPointerException: se a entidade for nula, retorna nulo.
         if(entity == null) return null;
 
         return new BarbeiroSaidaDto(
-                entity.getId(), // Retorna o ID necessário para links do Thymeleaf
+                entity.getId(),            // Retorna o ID necessário para links do Thymeleaf
                 entity.getNome(),
                 entity.getDataNascimento(),
                 entity.getTelefone(),
                 entity.getEspecialidade(),
-                entity.getEmail()
+                entity.getEmail(),
+                entity.getStatus()
         );
     }
+
+    //Converte uma lista de Entities em uma lista de DTOs de saída.
+    //Reaproveita o método individual acima, evitando duplicação
+    //@param entities lista vinda do repositório
+    //@return lista de DTOs prontos para resposta da APIde lógica de mapeamento.
+    public static List<BarbeiroSaidaDto> toSaidaDtoList(List<BarbeiroEntity> entities) {
+        if (entities == null) {
+            return List.of();
+        }
+
+        return entities.stream()
+                .map(BarbeiroMapper::toSaidaDto)
+                .toList();
+    }
+
+
+    //Aplica os dados do DTO de atualização em cima de uma Entity
+    public static void atualizarEntity(BarbeiroAtualizaDto dto, BarbeiroEntity entity) {
+
+        if (dto == null || entity == null) {
+            return;
+        }
+
+        entity.setNome(dto.nome());
+        entity.setDataNascimento(dto.dataNascimento());
+        entity.setTelefone(dto.telefone());
+        entity.setEspecialidade(dto.especialidade());
+        entity.setEmail(dto.email());
+    }
+
+
+    // ---------- Sobre BarbeiroAlteraSenhaDto ----------
+    // Propositalmente não existe um método aqui tipo "alterarSenha(dto, entity)".
+    // Troca de senha envolve:
+    //   1. Validar a senha atual (comparar hash) -> regra de negócio/segurança
+    //   2. Gerar hash da nova senha -> depende do PasswordEncoder
+    //   3. Possivelmente invalidar sessões/tokens antigos
+    // Nada disso é "mapeamento de campos", e sim lógica de negócio.
+    // Por isso essa responsabilidade fica inteiramente no BarbeiroService,
+    // e não neste Mapper.
 
 }

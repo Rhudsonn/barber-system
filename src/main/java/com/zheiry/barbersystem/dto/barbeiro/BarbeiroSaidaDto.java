@@ -1,4 +1,6 @@
-package com.zheiry.barbersystem.dto;
+package com.zheiry.barbersystem.dto.barbeiro;
+
+import com.zheiry.barbersystem.enums.Status;
 
 import java.time.LocalDate;
 
@@ -14,6 +16,8 @@ public record BarbeiroSaidaDto(
         LocalDate dataNascimento,
         String telefone,
         String especialidade,
-        String email
+        String email,
+
+        Status status
 ) {
 }
