@@ -1,0 +1,150 @@
+================================================================================
+CHECKLIST - CONFIGURAÇÕES DO SISTEMA
+Barber System
+================================================================================
+
+--------------------------------------------------------------------------------
+1. BANCO DE DADOS (application.properties)
+--------------------------------------------------------------------------------
+
+[x] URL de conexão
+    spring.datasource.url=jdbc:mysql://localhost:3306/barberShop
+
+[x] Usuário do banco
+    spring.datasource.username=root
+
+[x] Senha do banco
+    spring.datasource.password=   (vazio)
+
+[x] Driver JDBC
+    spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+[x] Dialeto Hibernate
+    spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+
+[x] Estratégia DDL
+    spring.jpa.hibernate.ddl-auto=update
+    (cria/atualiza tabelas automaticamente sem apagar dados)
+
+[x] Exibir SQL no console
+    spring.jpa.show-sql=true
+
+[x] Formatar SQL no console
+    spring.jpa.properties.hibernate.format_sql=true
+
+--------------------------------------------------------------------------------
+2. JWT (application.properties)
+--------------------------------------------------------------------------------
+
+[x] Secret do JWT
+    jwt.secret=${JWT_SECRET:minhaSecretDeDesenvolvimentoComPeloMenos32Caracteres}
+    (pode ser sobrescrito por variável de ambiente)
+
+[x] Tempo de expiração
+    jwt.expiration=${JWT_EXPIRATION:7200000}
+    (2 horas em milissegundos)
+
+--------------------------------------------------------------------------------
+3. SPRING SECURITY (SecurityConfiguracao.java)
+--------------------------------------------------------------------------------
+
+[x] @EnableMethodSecurity
+    Permite uso de @PreAuthorize nos controllers
+
+[x] PasswordEncoder
+    Bean: BCryptPasswordEncoder
+
+[x] AuthenticationManager
+    Bean configurado para uso no LoginController
+
+[x] CSRF
+    Desabilitado (aplicação stateless com JWT)
+
+[x] Session Creation Policy
+    STATELESS (não cria HttpSession)
+
+[x] Rotas públicas
+    /login → permitAll()
+
+[x] Proteção por método HTTP
+    POST /barbeiros/** → hasRole("ADMINISTRADOR")
+
+[x] Demais rotas
+    anyRequest().authenticated()
+
+[x] Filtro JWT
+    JwtAuthFilter adicionado antes do UsernamePasswordAuthenticationFilter
+
+[x] UserDetailsService customizado
+    CustomUserDetailsService injetado
+
+--------------------------------------------------------------------------------
+4. AUTENTICAÇÃO E AUTORIZAÇÃO
+--------------------------------------------------------------------------------
+
+[x] CustomUserDetailsService
+    Busca usuário na ordem: Administrador → Barbeiro → Cliente
+    Define role com base no NivelAcesso
+    Desabilita usuário se status = INATIVO
+
+[x] JwtService
+    Gera token com subject (e-mail) + roles
+    Valida token e extrai claims
+
+[x] JwtAuthFilter
+    Lê header Authorization: Bearer <token>
+    Valida e popula SecurityContext
+
+[x] LoginController
+    POST /login
+    Autentica com AuthenticationManager
+    Retorna token JWT + tipo "Bearer"
+
+--------------------------------------------------------------------------------
+5. ENUMS
+--------------------------------------------------------------------------------
+
+[x] NivelAcesso
+    ADMINISTRADOR, BARBEIRO, CLIENTE
+
+[x] Status
+    ATIVO, INATIVO
+
+--------------------------------------------------------------------------------
+6. TRATAMENTO DE EXCEÇÕES (GlobalExceptionHandler)
+--------------------------------------------------------------------------------
+
+[x] BadCredentialsException     → 401 "Email ou senha inválidos"
+[x] AccessDeniedException       → 403 "Você não tem permissão para esta ação"
+[x] MethodArgumentNotValidException → 400 (mapa de erros de validação)
+[x] ResourceNotFoundException   → 404
+[x] DuplicateResourceException  → 409
+[x] BadRequestException         → 400
+
+--------------------------------------------------------------------------------
+7. DEPENDÊNCIAS PRINCIPAIS (pom.xml)
+--------------------------------------------------------------------------------
+
+[x] spring-boot-starter-data-jpa
+[x] spring-boot-starter-webmvc
+[x] spring-boot-starter-validation
+[x] spring-boot-starter-security
+[x] spring-boot-starter-thymeleaf
+[x] mysql-connector-j
+[x] jjwt-api / jjwt-impl / jjwt-jackson (0.12.6)
+[x] spring-boot-devtools
+
+--------------------------------------------------------------------------------
+8. PADRÕES DE CÓDIGO ADOTADOS
+--------------------------------------------------------------------------------
+
+[x] Mapper estático (toEntity, toSaidaDto, atualizarEntity, toSaidaDtoList)
+[x] Senha criptografada sempre no Service (nunca no Mapper)
+[x] Exclusão lógica (status INATIVO) em vez de exclusão física
+[x] DTOs de saída nunca retornam senha
+[x] Validação de unicidade de e-mail e telefone
+[x] Uso de @Transactional em operações de escrita
+[x] Records para DTOs
+[x] ResponseEntity com status HTTP semânticos (201, 204, etc.)
+
+================================================================================

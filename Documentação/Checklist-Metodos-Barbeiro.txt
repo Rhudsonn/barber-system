@@ -1,0 +1,105 @@
+================================================================================
+CHECKLIST - MÉTODOS DE BARBEIRO E AUTORIZAÇÕES
+Barber System
+================================================================================
+
+LEGENDA DE AUTORIZAÇÃO:
+  [ADMIN]     = Somente ADMINISTRADOR
+  [BARBEIRO]  = Somente o próprio barbeiro (dono do recurso)
+  [AUTH]      = Qualquer usuário autenticado
+  [PUBLIC]    = Público (sem autenticação)
+
+--------------------------------------------------------------------------------
+MÉTODOS IMPLEMENTADOS
+--------------------------------------------------------------------------------
+
+[x] Cadastrar Barbeiro
+    Endpoint     : POST /barbeiros
+    Autorização  : [ADMIN]
+    Anotação     : @PreAuthorize("hasRole('ADMINISTRADOR')")
+    Retorno      : 201 Created + BarbeiroSaidaDto
+    Observação   : Também protegido no SecurityFilterChain (POST /barbeiros/**)
+
+[x] Listar Barbeiros Ativos
+    Endpoint     : GET /barbeiros/lista/ativos
+    Autorização  : [AUTH]
+    Anotação     : Nenhuma (qualquer autenticado)
+    Retorno      : 200 OK + List<BarbeiroSaidaDto>
+
+[x] Listar Barbeiros Inativos
+    Endpoint     : GET /barbeiros/lista/inativos
+    Autorização  : [ADMIN]
+    Anotação     : @PreAuthorize("hasRole('ADMINISTRADOR')")
+    Retorno      : 200 OK + List<BarbeiroSaidaDto>
+
+[x] Buscar Barbeiro por Nome
+    Endpoint     : GET /barbeiros?nome={nome}
+    Autorização  : [AUTH]
+    Anotação     : Nenhuma
+    Retorno      : 200 OK + List<BarbeiroSaidaDto>
+    Observação   : Busca parcial (Containing) + IgnoreCase
+
+[x] Buscar Barbeiro por ID
+    Endpoint     : GET /barbeiros/{id}
+    Autorização  : [AUTH]
+    Anotação     : Nenhuma
+    Retorno      : 200 OK + BarbeiroSaidaDto
+                  404 se não encontrado
+
+[x] Atualizar Informações do Barbeiro (parcial)
+    Endpoint     : PATCH /barbeiros/{id}
+    Autorização  : [BARBEIRO]  (somente o próprio)
+    Anotação     : Validação no Service via SecurityContextHolder
+    Retorno      : 200 OK + BarbeiroSaidaDto
+    Observação   : Atualiza apenas campos enviados (não-nulos)
+
+[x] Alterar Senha
+    Endpoint     : PATCH /barbeiros/{id}/senha
+    Autorização  : [BARBEIRO]  (somente o próprio)
+    Anotação     : Validação no Service via SecurityContextHolder
+    Retorno      : 204 No Content
+    Observação   : Compara e-mail do JWT com e-mail do barbeiro
+
+[x] Desativar Barbeiro (Exclusão Lógica)
+    Endpoint     : PATCH /barbeiros/{id}/desativar
+    Autorização  : [ADMIN]
+    Anotação     : @PreAuthorize("hasRole('ADMINISTRADOR')")
+    Retorno      : 204 No Content
+    Observação   : Muda status para INATIVO (não apaga do banco)
+
+[x] Reativar Barbeiro
+    Endpoint     : PATCH /barbeiros/{id}/reativar
+    Autorização  : [ADMIN]
+    Anotação     : @PreAuthorize("hasRole('ADMINISTRADOR')")
+    Retorno      : 204 No Content
+    Observação   : Muda status para ATIVO
+
+--------------------------------------------------------------------------------
+RESUMO DE AUTORIZAÇÕES
+--------------------------------------------------------------------------------
+
+ADMINISTRADOR pode:
+  - Cadastrar barbeiro
+  - Listar inativos
+  - Desativar barbeiro
+  - Reativar barbeiro
+  - Tudo que um usuário autenticado pode
+
+BARBEIRO (próprio) pode:
+  - Alterar a própria senha
+
+QUALQUER AUTENTICADO pode:
+  - Listar ativos
+  - Buscar por nome
+  - Buscar por ID
+  - Atualizar informações (atualmente aberto)
+
+--------------------------------------------------------------------------------
+PENDÊNCIAS / MELHORIAS SUGERIDAS
+--------------------------------------------------------------------------------
+
+[ ] Endpoint de listagem geral (sem filtro de status)
+[ ] Paginação nas listagens
+[ ] Filtro combinado (nome + status)
+
+================================================================================
