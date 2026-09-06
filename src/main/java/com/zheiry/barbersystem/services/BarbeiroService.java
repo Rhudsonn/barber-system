@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.services;
 
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAlteraSenhaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
@@ -12,6 +13,8 @@ import com.zheiry.barbersystem.mappers.BarbeiroMapper;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
 import com.zheiry.barbersystem.exception.BadRequestException;
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -121,29 +124,108 @@ public class BarbeiroService {
     }
 
 
-    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto){
+    @Transactional
+    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto) {
 
-        //Busco o barbeiro pelo id se nao existir laco excessao.
-        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        // Busca o barbeiro. Se não existir, lança 404.
+        BarbeiroEntity barbeiro = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
 
-        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)){
+        // Pega o e-mail do usuário autenticado (vem do JWT)
+        String emailLogado = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        // Só permite se o e-mail logado for o mesmo do barbeiro
+        if (!barbeiro.getEmail().equals(emailLogado)) {
+            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
+        }
+
+        // Valida se o novo e-mail já está em uso por outro usuário
+        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
             throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
         }
 
-
-        // Verifica se o telefone ja pertence a outro usuario.
-        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)){
+        // Valida se o novo telefone já está em uso por outro usuário
+        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)) {
             throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
         }
 
-        // Mapper atualiza os dados da Entity
+        // Aplica apenas os campos que vieram preenchidos no DTO
         BarbeiroMapper.atualizarEntity(dto, barbeiro);
 
-        // Salva as alterações
+        // Salva e retorna o DTO de saída
         repository.save(barbeiro);
-
-        // Converte Entity para DTO de saída
         return BarbeiroMapper.toSaidaDto(barbeiro);
+    }
+
+
+    @Transactional
+    public void alterarSenha(Long id, BarbeiroAlteraSenhaDto dto) {
+
+        // Busca o barbeiro pelo ID
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+
+        // Pega o e-mail do usuário logado (vem do JWT)
+        String emailLogado = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();   // retorna o e-mail (subject do token)
+
+        // Só permite se o e-mail logado for o mesmo do barbeiro
+        if (!barbeiro.getEmail().equals(emailLogado)) {
+            throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
+        }
+
+        // Valida a senha atual
+        if (!passwordEncoder.matches(dto.senhaAtual(), barbeiro.getSenha())) {
+            throw new BadRequestException("Senha atual incorreta!");
+        }
+
+        // Valida confirmação da nova senha
+        if (!dto.novaSenha().equals(dto.confirmaNovaSenha())) {
+            throw new BadRequestException("Nova senha e confirmação não conferem!");
+        }
+
+        // Impede senha igual à atual
+        if (passwordEncoder.matches(dto.novaSenha(), barbeiro.getSenha())) {
+            throw new BadRequestException("A nova senha deve ser diferente da senha atual!");
+        }
+
+        // Criptografa e salva
+        barbeiro.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        repository.save(barbeiro);
+    }
+
+
+    @Transactional
+    public void desativarBarbeiro(Long id) {
+
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        // Evitar tentativas de desativar alguem que ja esta INATIVO
+        if (barbeiro.getStatus() == Status.INATIVO) {
+            throw new BadRequestException("Este barbeiro já esta desativado!");
+        }
+
+        //Realisa a exclusão lógica
+        barbeiro.setStatus(Status.INATIVO);
+        repository.save(barbeiro);
+    }
+
+
+    @Transactional
+    public void reativarBarbeiro(Long id) {
+
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        // Evitar reativar barbeiro que ja esta ATIVO
+        if (barbeiro.getStatus() == Status.ATIVO) {
+            throw new BadRequestException("Este barbeiro ja esta ativo!");
+        }
+
+        // Reativar barbeiro
+        barbeiro.setStatus(Status.ATIVO);
+        repository.save(barbeiro);
     }
 
 
