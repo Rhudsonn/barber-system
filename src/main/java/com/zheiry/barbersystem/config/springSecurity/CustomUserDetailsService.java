@@ -1,4 +1,4 @@
-package com.zheiry.barbersystem.services.security;
+package com.zheiry.barbersystem.config.springSecurity;
 
 import com.zheiry.barbersystem.entities.AdministradorEntity;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
