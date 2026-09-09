@@ -1,4 +1,4 @@
-package com.zheiry.barbersystem.controller.administrador;
+package com.zheiry.barbersystem.controller;
 
 import com.zheiry.barbersystem.services.AdministradorService;
 import org.springframework.stereotype.Controller;
