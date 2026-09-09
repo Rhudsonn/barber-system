@@ -50,6 +50,9 @@ public class SecurityConfiguracao {
                         // Login e publico, obvio.
                         .requestMatchers("/login").permitAll()
 
+                        // Cadastro de cliente é público (vai ficar na tela de login).
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/clientes").permitAll()
+
                         // Somente ADMINISTRADOR pode cadastrar barbeiro.
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/barbeiros/**")
                         .hasRole("ADMINISTRADOR")
