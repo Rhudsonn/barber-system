@@ -52,7 +52,6 @@ public class BarbeiroService {
         }
 
         // Valida se a senha bate com o campo de confirmação de senha.
-        // Depois vou ter que alterar, porque vou criptografar a senha.
         if (!dto.senha().equals(dto.confirmaSenha())){
             throw new BadRequestException("Senha não condiz com a confirmação de senha!");
         }
@@ -71,10 +70,10 @@ public class BarbeiroService {
         entity.setStatus(Status.ATIVO);
 
         // PERSISTÊNCIA: Grava o novo barbeiro no banco de dados e recupera a entidade salva (com ID gerado)
-        BarbeiroEntity saved = repository.save(entity);
+        BarbeiroEntity salva = repository.save(entity);
 
         // RETORNO: Converte a entidade salva para o DTO de saída e o retorna para a camada superior (Controller)
-        return BarbeiroMapper.toSaidaDto(saved);
+        return BarbeiroMapper.toSaidaDto(salva);
     }
 
 
