@@ -13,6 +13,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ClienteService {
 
@@ -60,4 +62,23 @@ public class ClienteService {
         // RETORNO: Converte a entidade salva para o DTO de saída e o retorna para a camada superior (Controller)
         return ClienteMapper.toSaidaDto(salva);
     }
+
+
+    // Médoto que lista clientes por status
+    public List<ClienteSaidaDto> listaClientesPorStatus(Status status){
+        List<ClienteEntity> clientes = repository.findByStatus(status);
+        return ClienteMapper.toSaidaDtoList(clientes);
+    }
+
+    // Listar clientes com status --- ativo
+    public List<ClienteSaidaDto> listaClientesStatusAtivo(){
+        return listaClientesPorStatus(Status.ATIVO);
+    }
+
+    // Listar clientes com status --- inativo
+    public List<ClienteSaidaDto> listaClientesStatusInativo(){
+        return listaClientesPorStatus(Status.INATIVO);
+    }
+
+
 }
