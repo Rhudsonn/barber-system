@@ -1,5 +1,7 @@
 package com.zheiry.barbersystem.services;
 
+import com.zheiry.barbersystem.dto.cliente.ClienteAlteraSenhaDto;
+import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
 import com.zheiry.barbersystem.entities.ClienteEntity;
@@ -7,9 +9,12 @@ import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.exception.BadRequestException;
 import com.zheiry.barbersystem.exception.DuplicateResourceException;
+import com.zheiry.barbersystem.exception.ResourceNotFoundException;
 import com.zheiry.barbersystem.mappers.ClienteMapper;
 import com.zheiry.barbersystem.repositories.ClienteRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -78,6 +83,75 @@ public class ClienteService {
     // Listar clientes com status --- inativo
     public List<ClienteSaidaDto> listaClientesStatusInativo(){
         return listaClientesPorStatus(Status.INATIVO);
+    }
+
+
+
+    // Buscar por Nome.
+    public List<ClienteSaidaDto> buscarPorNome(String nome){
+        List<ClienteEntity> clientes = repository.findByNomeContainingIgnoreCase(nome);
+        return ClienteMapper.toSaidaDtoList(clientes);
+    }
+
+    // Buscar por ID.
+    public ClienteSaidaDto burcarClientePorId(Long id){
+        ClienteEntity cliente = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        return ClienteMapper.toSaidaDto(cliente);
+    }
+
+    // Atualizar informações de cadastro.
+    @Transactional
+    public ClienteSaidaDto atualizarInformacoesCliente(Long id, ClienteAtualizaDto dto){
+        // Busca o cliente. se nao existir lança excessao.
+        ClienteEntity cliente = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        // Pega o email do usuario autenticado (vem do JWT).
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Só permite atualizar se o email for o mesmo do cliente.
+        if(!cliente.getEmail().equals(emailLogado)){
+            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
+        }
+        // Valida se o novo email ja esta em uso por outro usuario.
+        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
+            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
+        }
+        // Valida se o telefone ja esta em uso por outro usuario.
+        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)) {
+            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
+        }
+        // Aplica apenas os campos que vierem preenchidos do DTO.
+        ClienteMapper.atualizarEntity(dto,cliente);
+        // Salva e retorna Dto de saida.
+        repository.save(cliente);
+        return ClienteMapper.toSaidaDto(cliente);
+    }
+
+    // Alterar senha.
+    @Transactional
+    public void alterarSenha(Long id, ClienteAlteraSenhaDto dto){
+
+        // Buscar cliente pelo ID.
+        ClienteEntity cliente = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        // Pega o email do usuario logado (vem do JWT).
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Só permite se o email logado for o mesmo do cliente.
+        if (!cliente.getEmail().equals(emailLogado)){
+            throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
+        }
+        // Valida a senha atual.
+        if (!passwordEncoder.matches(dto.senhaAtual(),cliente.getSenha())){
+            throw new BadRequestException("Senha atual incorreta!");
+        }
+        // Valida a confirmação da nova senha.
+        if (!dto.novaSenha().equals(dto.confirmaNovaSenha())){
+            throw new BadRequestException("Nova senha e confirmação não conferem!");
+        }
+        // Impede senha igual á atual.
+        if (passwordEncoder.matches(dto.novaSenha(),cliente.getSenha())){
+            throw new BadRequestException("A nova senha deve ser diferente da senha atual!");
+        }
+        // Criptografa e salva a nova senha.
+        cliente.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        repository.save(cliente);
     }
 
 

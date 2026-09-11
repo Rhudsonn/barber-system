@@ -16,6 +16,16 @@ public interface ClienteRepository extends JpaRepository<ClienteEntity, Long> {
     boolean existsByEmail(String email);
     boolean existsByTelefone(String telefone);
 
-    ////Me ajuda nos métodos de listar clientes com status ativo e inaivo
+    boolean existsByEmailAndIdNot(String email, Long id);
+    boolean existsByTelefoneAndIdNot(String telefone, Long id);
+
+    //Me ajuda nos métodos de listar clientes com status ativo e inaivo
     List<ClienteEntity> findByStatus(Status status);
+
+    //O Containing permite pesquisar parte do nome, e o IgnoreCase faz com que joão, João e JOÃO sejam tratados da mesma forma.
+    List<ClienteEntity> findByNomeContainingIgnoreCase(String nome);
+
+
+
+
 }
