@@ -80,11 +80,22 @@ public class ClienteMapper {
             return;
         }
 
-        entity.setNome(dto.nome());
-        entity.setDataNascimento(dto.dataNascimento());
-        entity.setTelefone(dto.telefone());
-        entity.setEmail(dto.email());
+        if(dto.nome() != null) {
+            entity.setNome(dto.nome());
+        }
+        if(dto.dataNascimento() != null) {
+            entity.setDataNascimento(dto.dataNascimento());
+        }
+        if (dto.telefone() != null) {
+            entity.setTelefone(dto.telefone());
+        }
+        if (dto.email() != null) {
+            entity.setEmail(dto.email());
+        }
+
     }
+
+
 
 
     // ---------- Sobre ClienteAlteraSenhaDto ----------
