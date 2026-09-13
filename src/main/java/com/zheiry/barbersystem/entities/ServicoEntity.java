@@ -4,6 +4,9 @@ import com.zheiry.barbersystem.enums.Categoria;
 import com.zheiry.barbersystem.enums.Status;
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "servicos")
 public class ServicoEntity {
@@ -32,11 +35,14 @@ public class ServicoEntity {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @OneToMany(mappedBy = "servico", cascade = CascadeType.ALL, orphanRemoval = false, fetch = FetchType.LAZY)
+    private List<AgendamentoEntity> agendamentos = new ArrayList<>();
+
 
     public ServicoEntity() {
     }
 
-    public ServicoEntity(Long id, String nome, String descricao, Categoria categoria, double preco, int duracaoEmMinutos, Status status) {
+    public ServicoEntity(Long id, String nome, String descricao, Categoria categoria, Double preco, Integer duracaoEmMinutos, Status status, List<AgendamentoEntity> agendamentos) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
@@ -44,6 +50,7 @@ public class ServicoEntity {
         this.preco = preco;
         this.duracaoEmMinutos = duracaoEmMinutos;
         this.status = status;
+        this.agendamentos = agendamentos;
     }
 
     public Long getId() {
@@ -78,19 +85,19 @@ public class ServicoEntity {
         this.categoria = categoria;
     }
 
-    public double getPreco() {
+    public Double getPreco() {
         return preco;
     }
 
-    public void setPreco(double preco) {
+    public void setPreco(Double preco) {
         this.preco = preco;
     }
 
-    public int getDuracaoEmMinutos() {
+    public Integer getDuracaoEmMinutos() {
         return duracaoEmMinutos;
     }
 
-    public void setDuracaoEmMinutos(int duracaoEmMinutos) {
+    public void setDuracaoEmMinutos(Integer duracaoEmMinutos) {
         this.duracaoEmMinutos = duracaoEmMinutos;
     }
 
@@ -100,5 +107,13 @@ public class ServicoEntity {
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public List<AgendamentoEntity> getAgendamentos() {
+        return agendamentos;
+    }
+
+    public void setAgendamentos(List<AgendamentoEntity> agendamentos) {
+        this.agendamentos = agendamentos;
     }
 }

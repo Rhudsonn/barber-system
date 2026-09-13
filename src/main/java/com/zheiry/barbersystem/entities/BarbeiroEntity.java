@@ -5,6 +5,8 @@ import com.zheiry.barbersystem.enums.Status;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "barbeiros")
@@ -43,11 +45,14 @@ public class BarbeiroEntity {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @OneToMany(mappedBy = "barbeiro", cascade = CascadeType.ALL, orphanRemoval = false, fetch = FetchType.LAZY)
+    private List<AgendamentoEntity> agendamentos = new ArrayList<>();
+
 
     public BarbeiroEntity() {
     }
 
-    public BarbeiroEntity(Long id, String nome, LocalDate dataNascimento, String telefone, String especialidade, String email, String senha, NivelAcesso nivelAcesso, Status status) {
+    public BarbeiroEntity(Long id, String nome, LocalDate dataNascimento, String telefone, String especialidade, String email, String senha, NivelAcesso nivelAcesso, Status status, List<AgendamentoEntity> agendamentos) {
         this.id = id;
         this.nome = nome;
         this.dataNascimento = dataNascimento;
@@ -57,6 +62,7 @@ public class BarbeiroEntity {
         this.senha = senha;
         this.nivelAcesso = nivelAcesso;
         this.status = status;
+        this.agendamentos = agendamentos;
     }
 
     public Long getId() {
@@ -129,5 +135,13 @@ public class BarbeiroEntity {
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public List<AgendamentoEntity> getAgendamentos() {
+        return agendamentos;
+    }
+
+    public void setAgendamentos(List<AgendamentoEntity> agendamentos) {
+        this.agendamentos = agendamentos;
     }
 }
