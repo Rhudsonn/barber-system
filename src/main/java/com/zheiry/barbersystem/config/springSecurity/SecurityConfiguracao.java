@@ -58,6 +58,19 @@ public class SecurityConfiguracao {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/barbeiros/**")
                         .hasRole("ADMINISTRADOR")
 
+                        // Somente ADMINISTRADOR pode cadastrar serviço.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/servicos/**")
+                        .hasRole("ADMINISTRADOR")
+
+                        // Lista de serviços ativos: qualquer usuário autenticado pode ver.
+                        .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos")
+                        .authenticated()
+
+
+                        // Lista de barbeiros ativos: qualquer usuário autenticado pode ver.
+                        .requestMatchers(HttpMethod.GET, "/barbeiros/lista/ativos")
+                        .authenticated()
+
 
                         // Qualquer outra rota precisa estar autenticada.
                         .anyRequest().authenticated()

@@ -22,7 +22,7 @@ public class ServicoMapper {
         ServicoEntity entity = new ServicoEntity();
 
         entity.setNome(dto.nome());
-        entity.setDescricao(dto.descrica());
+        entity.setDescricao(dto.descricao());
         entity.setCategoria(dto.categoria());
         entity.setPreco(dto.preco());
         entity.setDuracaoEmMinutos(dto.duracaoEmMinutos());

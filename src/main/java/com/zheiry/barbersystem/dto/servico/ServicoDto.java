@@ -10,7 +10,7 @@ public record ServicoDto(
         String nome,
 
         @NotBlank(message = "A descrição do serviço é obrigatória.")
-        String descrica,
+        String descricao,
 
         @NotNull(message = "A categoria do serviço não pode ser nulo.")
         Categoria categoria,
