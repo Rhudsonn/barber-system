@@ -1,4 +1,10 @@
 package com.zheiry.barbersystem.dto.agendamento;
 
-public record HorarioDisponivelDto() {
+import java.time.LocalTime;
+
+public record HorarioDisponivelDto(
+
+        LocalTime horario
+
+) {
 }
