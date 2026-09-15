@@ -1,0 +1,26 @@
+Page e Pageable no Spring Data
+
+Pageable é o parâmetro que você passa dizendo como quer os dados: qual página, quantos itens por página e a ordenação. Você não implementa nada, só cria um objeto:
+
+Pageable pageable = PageRequest.of(0, 10, Sort.by("dataHora").descending());
+// página 0, 10 itens por página, ordenado por data
+
+Page<T> é o retorno: não é só a lista de itens, é um "pacote" com metadados úteis:
+Page<AgendamentoEntity> resultado = repository.findByBarbeiroId(barbeiroId, pageable);
+
+resultado.getContent();        // List<AgendamentoEntity> da página atual
+resultado.getTotalElements();  // total de registros no banco (todas as páginas)
+resultado.getTotalPages();     // quantas páginas existem
+resultado.getNumber();         // número da página atual
+resultado.hasNext();           // se existe próxima página
+resultado.isLast();            // se é a última página
+
+O Spring Data já sabe montar o Page sozinho: quando você usa Pageable, ele automaticamente executa duas queries — uma para pegar os registros da página e outra COUNT para saber o total.
+
+Quando usar
+Use Page/Pageable quando a lista pode crescer muito (ex: agendamentos de um barbeiro ao longo do tempo) e você vai exibir isso paginado numa tela, com botões de "próxima/anterior" ou numeração de páginas.
+Não precisa se o resultado é sempre pequeno e limitado (ex: buscar os horários de um dia específico, que naturalmente tem poucos registros).
+
+Existe também o Slice<T>, uma alternativa mais leve: ele não faz o COUNT total (só verifica se há próxima página), então é mais rápido. Útil quando você só precisa de "carregar mais" (scroll infinito) e não precisa mostrar "página 3 de 20".
+
+No seu caso (findByBarbeiroId), faz bastante sentido usar Page, já que a lista de agendamentos de um barbeiro tende a crescer com o tempo.
