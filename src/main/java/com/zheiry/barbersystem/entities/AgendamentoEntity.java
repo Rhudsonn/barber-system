@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Table(name = "agendamentos", indexes = {
         @Index(name = "idx_barbeiro_data", columnList = "barbeiro_id, data_hora_inicio"),
         @Index(name = "idx_cliente", columnList = "cliente_id"),
-        @Index(name = "idx_status_data", columnList = "status, data_hora_inicio")
+        @Index(name = "idx_status_data", columnList = "status_agendamento, data_hora_inicio")
 })
 public class AgendamentoEntity {
 
