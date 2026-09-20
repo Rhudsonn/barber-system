@@ -27,6 +27,7 @@ public interface AgendamentoRepository extends JpaRepository<AgendamentoEntity, 
             LocalDateTime fim
     );
 
+
     // Lista agendamentos de um barbeiro em um intervalo, excluindo certos status
     List<AgendamentoEntity> findByBarbeiroIdAndDataHoraInicioBetweenAndStatusAgendamentoNotIn(
             Long barbeiroId,
