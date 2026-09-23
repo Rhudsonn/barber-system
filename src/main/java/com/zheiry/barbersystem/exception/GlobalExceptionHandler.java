@@ -55,6 +55,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
+    // Representa um problema de regra de negócio.
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<String> regraDeNegocio(BusinessException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ex.getMessage());
+    }
+
 
 
 }
