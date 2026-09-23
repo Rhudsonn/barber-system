@@ -33,7 +33,7 @@ public class HorarioDeTrabalhoService {
 
         // Verifica se o barbeiro está ativo
         if (barbeiro.getStatus() != Status.ATIVO) {
-            throw new BadRequestException("O barbeiro stá inativo e não pode realizar agendamentos.");
+            throw new BadRequestException("O barbeiro está inativo e não pode realizar agendamentos.");
         }
 
         // Valida se horárioInicio < horarioFim (já tem no DTO, mas reforça)
