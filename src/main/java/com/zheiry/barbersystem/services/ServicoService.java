@@ -28,7 +28,6 @@ public class ServicoService {
     // Cadastrar Serviço - só o administrador tem altorização.
     @Transactional
     public ServicoSaidaDto cadastrarServico(ServicoDto dto) throws BadRequestException {
-
         // Verificar se nome ja esta em uso.
         if (repository.existsByNome(dto.nome())){
             throw new DuplicateResourceException("Nome  do serviço já esta em uso!");
