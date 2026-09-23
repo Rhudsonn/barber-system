@@ -28,6 +28,8 @@ public class HorarioDeTrabalhoEntity {
     private LocalTime horarioFim;
 
 
+
+
     public HorarioDeTrabalhoEntity() {
     }
 
