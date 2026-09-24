@@ -62,6 +62,10 @@ public class SecurityConfiguracao {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/servicos/**")
                         .hasRole("ADMINISTRADOR")
 
+                        // Somente ADMINISTRADOR pode criar o horario de trabalho do barbeiro.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/horarios-trabalho")
+                        .hasRole("ADMINISTRADOR")
+
                         // Lista de serviços ativos: qualquer usuário autenticado pode ver.
                         .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos")
                         .authenticated()
@@ -70,6 +74,8 @@ public class SecurityConfiguracao {
                         // Lista de barbeiros ativos: qualquer usuário autenticado pode ver.
                         .requestMatchers(HttpMethod.GET, "/barbeiros/lista/ativos")
                         .authenticated()
+
+
 
 
                         // Qualquer outra rota precisa estar autenticada.
