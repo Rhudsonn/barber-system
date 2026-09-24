@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.services;
 
+import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoAtualizarDto;
 import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoDto;
 import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
@@ -54,12 +55,45 @@ public class HorarioDeTrabalhoService {
         }
 
         //Converte DTO → Entity
-        HorarioDeTrabalhoEntity horario = HorarioDeTrabalhoMapper.toEntity(dto);
+        HorarioDeTrabalhoEntity horario = HorarioDeTrabalhoMapper.toEntity(dto, barbeiro);
         HorarioDeTrabalhoEntity salva = horarioDeTrabalhoRepository.save(horario);
         return HorarioDeTrabalhoMapper.toSaidaDto(salva);
     }
 
+
     // Atualizar Horario (id, inicio, fim)
+    @Transactional
+    public HorarioDeTrabalhoSaidaDto atualizarHorarioDeTrabalho(Long id, HorarioDeTrabalhoAtualizarDto dto){
+
+        // Verifica se Horario (Id) existe.
+        HorarioDeTrabalhoEntity horario = horarioDeTrabalhoRepository.findById(id).orElseThrow(()-> new ResourceNotFoundException("Horário não encontrado."));
+
+        // Valida se horarioInicio < horarioFim.
+        if (!dto.horarioInicio().isBefore(dto.horarioFim())){
+            throw new BusinessException("Horário de início deve ser antes do horário de fim");
+        }
+
+
+        // Verifica se existe sobreposição com OUTROS horários do mesmo barbeiro, no mesmo dia, ignorando o próprio registro
+        boolean existeSobreposicao = horarioDeTrabalhoRepository.existsByBarbeiroIdAndDiaSemanaAndHorarioInicioLessThanAndHorarioFimGreaterThan(
+                        horario.getBarbeiro().getId(),
+                        horario.getDiaSemana(),
+                        id,                      // ignora o próprio horário
+                        dto.horarioFim(),        // novo fim
+                        dto.horarioInicio()
+                );
+        if (existeSobreposicao) {
+            throw new BusinessException("Já existe um horário cadastrado que conflita com este intervalo");
+        }
+
+        // Aplica apenas os campos que vieram preenchidos do DTO.
+        HorarioDeTrabalhoMapper.atualizarEntity(dto, horario);
+        horarioDeTrabalhoRepository.save(horario);
+        return HorarioDeTrabalhoMapper.toSaidaDto(horario);
+    }
+
+
+
     // Excluir horario (id)
     // Listar horarios Por Barbeiro (barbeiroId)
 

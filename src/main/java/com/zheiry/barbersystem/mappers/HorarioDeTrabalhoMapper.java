@@ -1,7 +1,10 @@
 package com.zheiry.barbersystem.mappers;
 
+
+import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoAtualizarDto;
 import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoDto;
 import com.zheiry.barbersystem.dto.horarioDeTrabalho.HorarioDeTrabalhoSaidaDto;
+import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.entities.HorarioDeTrabalhoEntity;
 
 import java.util.List;
@@ -13,9 +16,10 @@ public class HorarioDeTrabalhoMapper {
 
 
     // Dto - Entity (toEntity)
-    public static HorarioDeTrabalhoEntity toEntity(HorarioDeTrabalhoDto dto) {
+    public static HorarioDeTrabalhoEntity toEntity(HorarioDeTrabalhoDto dto, BarbeiroEntity barbeiro) {
         if (dto == null) return null;
         HorarioDeTrabalhoEntity entity = new HorarioDeTrabalhoEntity();
+        entity.setBarbeiro(barbeiro); // Recebe o barbeiro
         entity.setDiaSemana(dto.diaSemana());
         entity.setHorarioInicio(dto.horarioInicio());
         entity.setHorarioFim(dto.horarioFim());
@@ -45,6 +49,17 @@ public class HorarioDeTrabalhoMapper {
     }
 
 
-    // //Aplica os dados do DTO de atualização em cima de uma Entity (atualizarEntit)
+    //Aplica os dados do DTO de atualização em cima de uma Entity (atualizarEntit)
+    public static void atualizarEntity(HorarioDeTrabalhoAtualizarDto dto, HorarioDeTrabalhoEntity entity) {
+
+        if (dto == null || entity == null) return;
+
+        if (dto.horarioInicio() != null){
+            entity.setHorarioInicio(dto.horarioInicio());
+        }
+        if (dto.horarioFim() != null){
+            entity.setHorarioFim(dto.horarioFim());
+        }
+    }
 
 }
