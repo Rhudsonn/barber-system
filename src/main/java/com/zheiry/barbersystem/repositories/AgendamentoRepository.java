@@ -49,4 +49,15 @@ public interface AgendamentoRepository extends JpaRepository<AgendamentoEntity, 
             Pageable pageable
     );
 
+    // Busca agendamentos futuros de um barbeiro, excluindo status que não importam
+    // Este metodo me ajuda na classe HorarioDeServicoService me auxiliando na exclusao do horario,
+    // com ele verifico se o barbeiro tem agendamento dentro do horario de trabalho futuro antes de esxcluir, e perde os dados.
+    // dataHoraInicioAfter - só pega agendamentos futuros
+    // StatusAgendamentoNotIn - ignora status que não devem impedir a exclusão
+    List<AgendamentoEntity> findByBarbeiroIdAndDataHoraInicioAfterAndStatusAgendamentoNotIn(
+            Long barbeiroId,
+            LocalDateTime dataHora,
+            List<StatusAgendamento> statusExcluidos
+    );
+
 }
