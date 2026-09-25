@@ -66,6 +66,10 @@ public class SecurityConfiguracao {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/horarios-trabalho")
                         .hasRole("ADMINISTRADOR")
 
+                        // Somente ADMINISTRADOR pode atualizar o horario de trabalho do barbeiro.
+                        .requestMatchers(HttpMethod.PATCH,"/horarios-trabalho")
+                        .hasRole("ADMINISTRADOR")
+
                         // Lista de serviços ativos: qualquer usuário autenticado pode ver.
                         .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos")
                         .authenticated()

@@ -18,4 +18,14 @@ public interface HorarioDeTrabalhoRepository extends JpaRepository<HorarioDeTrab
             LocalTime horarioInicio,
             LocalTime horarioFim
     );
+
+    boolean existsByBarbeiroIdAndDiaSemanaAndIdNotAndHorarioInicioLessThanAndHorarioFimGreaterThan(
+            Long barbeiroId,
+            DiaSemana diaSemana,
+            Long id,
+            LocalTime horarioFim,
+            LocalTime horarioInicio
+    );
+
+
 }
