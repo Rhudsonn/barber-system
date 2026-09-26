@@ -40,7 +40,7 @@ public class HorarioDeTrabalhoMapper {
         );
     }
 
-    //Converte uma lista de Entities em uma lista de DTOs de saída. (toSaidaDtoList)
+    // Converte uma lista de Entities em uma lista de DTOs de saída. (toSaidaDtoList)
     public static List<HorarioDeTrabalhoSaidaDto> toSaidaDtoList(List<HorarioDeTrabalhoEntity> entity){
         if (entity == null) return List.of();
         return entity.stream()
@@ -49,17 +49,13 @@ public class HorarioDeTrabalhoMapper {
     }
 
 
-    //Aplica os dados do DTO de atualização em cima de uma Entity (atualizarEntit)
+    // Aplica os dados do DTO de atualização em cima de uma Entity (atualizarEntit)
     public static void atualizarEntity(HorarioDeTrabalhoAtualizarDto dto, HorarioDeTrabalhoEntity entity) {
 
         if (dto == null || entity == null) return;
 
-        if (dto.horarioInicio() != null){
-            entity.setHorarioInicio(dto.horarioInicio());
-        }
-        if (dto.horarioFim() != null){
-            entity.setHorarioFim(dto.horarioFim());
-        }
+        entity.setHorarioInicio(dto.horarioInicio());
+        entity.setHorarioFim(dto.horarioFim());
     }
 
 }
