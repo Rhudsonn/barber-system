@@ -13,7 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+
 
 @Configuration
 @EnableMethodSecurity // permite @PreAuthorize nos controllers/services
@@ -68,6 +68,10 @@ public class SecurityConfiguracao {
 
                         // Somente ADMINISTRADOR pode atualizar o horario de trabalho do barbeiro.
                         .requestMatchers(HttpMethod.PATCH,"/horarios-trabalho")
+                        .hasRole("ADMINISTRADOR")
+
+                        // Somente administrador pode excluir o horario de trabalho de um bareiro.
+                        .requestMatchers(HttpMethod.DELETE, "/horarios-trabalho")
                         .hasRole("ADMINISTRADOR")
 
                         // Lista de serviços ativos: qualquer usuário autenticado pode ver.
