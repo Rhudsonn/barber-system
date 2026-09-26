@@ -53,6 +53,10 @@ public class BarbeiroEntity {
     @OneToMany(mappedBy = "barbeiro", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<HorarioDeTrabalhoEntity> horarios = new ArrayList<>();
 
+    // Relacionamento com a tabela BloqueioEntity
+    @OneToMany(mappedBy = "barbeiro", cascade = CascadeType.ALL)
+    private List<BloqueioEntity> bloqueios = new ArrayList<>();
+
 
     public BarbeiroEntity() {
     }
