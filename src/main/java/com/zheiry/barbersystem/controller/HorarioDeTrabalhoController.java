@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -28,12 +27,14 @@ public class HorarioDeTrabalhoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saida);
     }
 
+    // Atualizar Horario de trabalho do berbeiro, somente administrador pode alterar.
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<HorarioDeTrabalhoSaidaDto> atualizarInformacoes(@PathVariable Long id, @RequestBody @Valid HorarioDeTrabalhoAtualizarDto dto){
         return ResponseEntity.ok(service.atualizarHorarioDeTrabalho(id,dto));
     }
 
+    // Excluir horario de trabalho do barbeiro, somente administrador pode excluir - No servico valido se tem agendamento para o barbeiro.
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @ResponseStatus(HttpStatus.NO_CONTENT) // 204
