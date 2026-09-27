@@ -5,15 +5,18 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDate;
+
+import java.time.LocalDateTime;
 
 public record BloqueioAtualizaDto(
 
         @NotNull(message = "Data de início é obrigatória.")
-        LocalDate dataInicio,
+        @Future(message = "A data do bloqueio deve ser no futuro.")
+        LocalDateTime dataInicio,
 
         @NotNull(message = "Data de fim é obrigatória.")
-        LocalDate dataFim,
+        @Future(message = "A data final do bloqueio deve ser no futuro.")
+        LocalDateTime dataFim,
 
         @NotBlank(message = "Motivo é obrigatório.")
         String motivo

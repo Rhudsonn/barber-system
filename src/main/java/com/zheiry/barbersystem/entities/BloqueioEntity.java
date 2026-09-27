@@ -3,6 +3,7 @@ package com.zheiry.barbersystem.entities;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bloqueio")
@@ -20,10 +21,10 @@ public class BloqueioEntity {
     private BarbeiroEntity barbeiro;
 
     @Column(nullable = false)
-    private LocalDate dataInicio;
+    private LocalDateTime dataInicio;
 
     @Column(nullable = false)
-    private LocalDate dataFim;
+    private LocalDateTime dataFim;
 
     @Column(nullable = false)
     private String motivo;
@@ -32,7 +33,7 @@ public class BloqueioEntity {
     public BloqueioEntity() {
     }
 
-    public BloqueioEntity(Long id, BarbeiroEntity barbeiro, LocalDate dataInicio, LocalDate dataFim, String motivo) {
+    public BloqueioEntity(Long id, BarbeiroEntity barbeiro, LocalDateTime dataInicio, LocalDateTime dataFim, String motivo) {
         this.id = id;
         this.barbeiro = barbeiro;
         this.dataInicio = dataInicio;
@@ -56,19 +57,19 @@ public class BloqueioEntity {
         this.barbeiro = barbeiro;
     }
 
-    public LocalDate getDataInicio() {
+    public LocalDateTime getDataInicio() {
         return dataInicio;
     }
 
-    public void setDataInicio(LocalDate dataInicio) {
+    public void setDataInicio(LocalDateTime dataInicio) {
         this.dataInicio = dataInicio;
     }
 
-    public LocalDate getDataFim() {
+    public LocalDateTime getDataFim() {
         return dataFim;
     }
 
-    public void setDataFim(LocalDate dataFim) {
+    public void setDataFim(LocalDateTime dataFim) {
         this.dataFim = dataFim;
     }
 

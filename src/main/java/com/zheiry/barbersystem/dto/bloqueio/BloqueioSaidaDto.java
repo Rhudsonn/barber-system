@@ -1,6 +1,7 @@
 package com.zheiry.barbersystem.dto.bloqueio;
 
-import java.time.LocalDate;
+
+import java.time.LocalDateTime;
 
 public record BloqueioSaidaDto(
 
@@ -9,8 +10,8 @@ public record BloqueioSaidaDto(
         Long barbeiroId,
         String nomeBarbeiro,
 
-        LocalDate dataInicio,
-        LocalDate dataFim,
+        LocalDateTime dataInicio,
+        LocalDateTime dataFim,
         String motivo
 ) {
 }
