@@ -18,6 +18,7 @@ import com.zheiry.barbersystem.repositories.BloqueioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -42,7 +43,7 @@ public class BloqueioService {
 
         // Verifica se Barbeiro esta ativo
         if (barbeiro.getStatus() != Status.ATIVO){
-            throw new BusinessException("\"Barbeiro não está inativo.");
+            throw new BusinessException("Barbeiro está inativo");
         }
 
         // Valida dataInicio < dataFim
@@ -90,12 +91,110 @@ public class BloqueioService {
 
 
     // Atualizar
+    @Transactional
+    public BloqueioSaidaDto atualizar(Long id, BloqueioAtualizaDto dto){
+
+        //Busca o bloqueio pelo ID
+        BloqueioEntity bloqueio = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bloqueio não encontrad"));
+
+        if (!dto.dataInicio().isBefore(dto.dataFim())) {
+            throw new BusinessException("Data de início deve ser antes da data de fim");
+        }
+
+        //Pega o ID do barbeiro dono do bloqueio (o barbeiro não muda na atualização).
+        Long barbeiroId = bloqueio.getBarbeiro().getId();
+
+        // Sobreposição ignorando o próprio bloqueio
+        List<BloqueioEntity> conflitos = repository
+                .findByBarbeiroIdAndIdNotAndDataInicioLessThanAndDataFimGreaterThan(
+                        barbeiroId,
+                        id,
+                        dto.dataFim(),
+                        dto.dataInicio()
+                );
+
+        if (!conflitos.isEmpty()) {
+            throw new BusinessException("Já existe um bloqueio que conflita com este período");
+        }
+
+        validarAgendamentosNoPeriodo(barbeiroId, dto.dataInicio(), dto.dataFim());
+
+        BloqueioMapper.atualizarEntity(dto, bloqueio);
+        BloqueioEntity atualizado = repository.save(bloqueio);
+        return BloqueioMapper.toSaidaDto(atualizado);
+    }
 
 
     // Excluir
-    // buscarPorId
-    // listarPorBarbeiro
-    // listarPorBarbeiroEPeriodo
-    // existeBloqueioNoPeriodo
+    @Transactional
+    public void excluir(Long id){
+        BloqueioEntity bloqueio = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bloqueio não encontrado"));
+        repository.delete(bloqueio);
+    }
 
+    // buscarPorId
+    @Transactional(readOnly = true)
+    public BloqueioSaidaDto buscarPorId(Long id){
+        BloqueioEntity bloqueio = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bloqueio não encontrado"));
+        return BloqueioMapper.toSaidaDto(bloqueio);
+    }
+
+    // listarPorBarbeiro
+    @Transactional(readOnly = true)
+    public List<BloqueioSaidaDto> listarPorBarbeiro(Long barbeiroId){
+
+        if (!barbeiroRepository.existsById(barbeiroId)) {
+            throw new ResourceNotFoundException("Barbeiro não encontrado");
+        }
+
+        List<BloqueioEntity> bloqueios = repository.findByBarbeiroId(barbeiroId);
+        return BloqueioMapper.toSaidaDtoList(bloqueios);
+    }
+
+
+    // listarPorBarbeiroEPeriodo (útil para agenda)
+    @Transactional(readOnly = true)
+    public List<BloqueioSaidaDto> listarPorBarbeiroEPeriodo(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim){
+
+        if (!barbeiroRepository.existsById(barbeiroId)) {
+            throw new ResourceNotFoundException("Barbeiro não encontrado");
+        }
+
+        if (inicio == null || fim == null || !inicio.isBefore(fim)) {
+            throw new BusinessException("Período inválido: início deve ser antes do fim");
+        }
+
+        // Mesma lógica de sobreposição: bloqueio intersecta o intervalo [inicio, fim]
+        List<BloqueioEntity> bloqueios = repository
+                .findByBarbeiroIdAndDataInicioLessThanAndDataFimGreaterThan(
+                        barbeiroId,
+                        fim,
+                        inicio
+                );
+
+        return BloqueioMapper.toSaidaDtoList(bloqueios);
+    }
+
+
+    // existeBloqueioNoPeriodo
+    @Transactional(readOnly = true)
+    public boolean existeBloqueioNoPeriodo(Long barbeiroId,
+                                           LocalDateTime inicio,
+                                           LocalDateTime fim) {
+        return repository.existsByBarbeiroIdAndDataInicioLessThanAndDataFimGreaterThan(
+                barbeiroId,
+                fim,
+                inicio
+        );
+    }
+
+
+
+    // Método privado de apoio
+    private void validarAgendamentosNoPeriodo(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim){
+        List<StatusAgendamento> statusIgnorados = List.of(
+                StatusAgendamento.CANCELADO_CLIENTE,
+                StatusAgendamento.CANCELADO_BARBEIRO
+        );
+    }
 }
