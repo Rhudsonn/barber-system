@@ -2,24 +2,20 @@ package com.zheiry.barbersystem.services;
 
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoDto;
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoSaidaDto;
-import com.zheiry.barbersystem.entities.AgendamentoEntity;
-import com.zheiry.barbersystem.entities.BarbeiroEntity;
-import com.zheiry.barbersystem.entities.ClienteEntity;
-import com.zheiry.barbersystem.entities.ServicoEntity;
+import com.zheiry.barbersystem.entities.*;
+import com.zheiry.barbersystem.enums.DiaSemana;
 import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.enums.StatusAgendamento;
+import com.zheiry.barbersystem.exception.BadRequestException;
 import com.zheiry.barbersystem.exception.ResourceNotFoundException;
 import com.zheiry.barbersystem.mappers.AgendamentoMapper;
-import com.zheiry.barbersystem.repositories.AgendamentoRepository;
-import com.zheiry.barbersystem.repositories.BarbeiroRepository;
-import com.zheiry.barbersystem.repositories.ClienteRepository;
-import com.zheiry.barbersystem.repositories.ServicoRepository;
+import com.zheiry.barbersystem.repositories.*;
 import jakarta.transaction.Transactional;
-import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -33,28 +29,43 @@ public class AgendamentoService {
     private final ClienteRepository clienteRepository;
     private final BarbeiroRepository barbeiroRepository;
     private final ServicoRepository servicoRepository;
+    private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
+    private final BarbeariaRepository barbeariaRepository;
+    private final BloqueioService bloqueioService;
 
-    public AgendamentoService(AgendamentoRepository agendamentoRepository, ClienteRepository clienteRepository, BarbeiroRepository barbeiroRepository, ServicoRepository servicoRepository) {
+    public AgendamentoService(AgendamentoRepository agendamentoRepository, ClienteRepository clienteRepository, BarbeiroRepository barbeiroRepository, ServicoRepository servicoRepository, HorarioFuncionamentoRepository horarioFuncionamentoRepository, BarbeariaRepository barbeariaRepository, BloqueioService bloqueioService) {
         this.agendamentoRepository = agendamentoRepository;
         this.clienteRepository = clienteRepository;
         this.barbeiroRepository = barbeiroRepository;
         this.servicoRepository = servicoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
+        this.barbeariaRepository = barbeariaRepository;
+        this.bloqueioService = bloqueioService;
     }
 
     // Verifica se existe conflito de horário para o barbeiro.
     //Busca os agendamentos do dia e verifica a sobreposição em memória.
     public boolean existeConflito(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim, Long agendamentoIdExcluido) {
 
+        // Verifica se existe bloqueio no periodo
+        if (bloqueioService.existeBloqueioNoPeriodo(barbeiroId, inicio, fim)){
+            return true;
+        }
+
+        // Verifica conflito com outros agendamentos
         LocalDate data = inicio.toLocalDate();
         LocalDateTime inicioDoDia = data.atStartOfDay();
         LocalDateTime fimDoDia = data.atTime(LocalTime.MAX);
 
-        List<AgendamentoEntity> agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraInicioBetween(barbeiroId, inicioDoDia, fimDoDia);
+        List<AgendamentoEntity> agendamentos = agendamentoRepository
+                .findByBarbeiroIdAndDataHoraInicioBetween(barbeiroId, inicioDoDia, fimDoDia);
 
         return agendamentos.stream()
-                .filter(a -> a.getStatusAgendamento() != StatusAgendamento.CANCELADO_CLIENTE && a.getStatusAgendamento() != StatusAgendamento.CANCELADO_BARBEIRO)
+                .filter(a -> a.getStatusAgendamento() != StatusAgendamento.CANCELADO_CLIENTE
+                        && a.getStatusAgendamento() != StatusAgendamento.CANCELADO_BARBEIRO)
                 .filter(a -> agendamentoIdExcluido == null || !a.getId().equals(agendamentoIdExcluido))
-                .anyMatch(a -> a.getDataHoraInicio().isBefore(fim) && a.getDataHoraFim().isBefore(inicio));
+                .anyMatch(a -> a.getDataHoraInicio().isBefore(fim)
+                        && a.getDataHoraFim().isAfter(inicio));
     }
 
 
@@ -89,7 +100,7 @@ public class AgendamentoService {
 
         // Verifica conflito de horário
         if (existeConflito(barbeiro.getId(), dataHoraInicio, dataHoraFim, null)) {
-            throw new BadRequestException("Já existe um agendamento para este barbeiro neste horário.");
+            throw new BadRequestException("Já existe um agendamento ou bloqueio para este barbeiro neste horário.");
         }
 
         AgendamentoEntity entity = AgendamentoMapper.toEntity(dto, cliente, barbeiro, servico);
@@ -142,29 +153,48 @@ public class AgendamentoService {
     }
 
 
-    //Retorna os horários livres de um barbeiro em uma data, considerando a duração do serviço.
-    public List<LocalTime> listarHorariosDisponiveis(Long barbeiroId,
-                                                    LocalDate data,
-                                                    int duracaoMinutos) {
+    // Retorna os horários livres de um barbeiro em uma data,
+// considerando horário de funcionamento da barbearia + duração do serviço + bloqueios.
+    public List<LocalTime> listarHorariosDisponiveis(Long barbeiroId, LocalDate data, int duracaoMinutos) {
 
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado.");
         }
 
-        // Horário de funcionamento (pode vir de configuração no futuro)
-        LocalTime abertura = LocalTime.of(9, 0);
-        LocalTime fechamento = LocalTime.of(19, 0);
+        // 1. Busca a barbearia principal (sistema de uma única barbearia)
+        var barbearia = barbeariaRepository.findFirstByOrderByIdAsc()
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma barbearia cadastrada."));
 
-        // Gera os possíveis horários de início (de 30 em 30 minutos)
-        List<LocalTime> todosHorarios = new ArrayList<>();
-        LocalTime horarioAtual = abertura;
+        // 2. Converte o dia da data para o enum DiaSemana
+        DiaSemana diaSemana = converterParaDiaSemana(data.getDayOfWeek());
 
-        while (!horarioAtual.plusMinutes(duracaoMinutos).isAfter(fechamento)) {
-            todosHorarios.add(horarioAtual);
-            horarioAtual = horarioAtual.plusMinutes(30);
+        // 3. Busca os horários de funcionamento daquele dia
+        List<HorarioFuncionamentoEntity> faixas =
+                horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemana(
+                        barbearia.getId(), diaSemana);
+
+        // Se não tem horário cadastrado nesse dia → barbearia fechada
+        if (faixas.isEmpty()) {
+            return List.of();
         }
 
-        // Busca os agendamentos do dia (ignorando cancelados)
+        // 4. Gera todos os possíveis horários de início (de 30 em 30 min) dentro das faixas
+        List<LocalTime> todosHorarios = new ArrayList<>();
+
+        for (HorarioFuncionamentoEntity faixa : faixas) {
+            LocalTime abertura = faixa.getHorarioInicio();
+            LocalTime fechamento = faixa.getHorarioFim();
+
+            LocalTime horarioAtual = abertura;
+
+            // Só adiciona se o slot inteiro (início + duração) cabe dentro da faixa
+            while (!horarioAtual.plusMinutes(duracaoMinutos).isAfter(fechamento)) {
+                todosHorarios.add(horarioAtual);
+                horarioAtual = horarioAtual.plusMinutes(15);  // Gera todos os possíveis horários de início (de 15 em 15 min) dentro das faixas
+            }
+        }
+
+        // 5. Busca agendamentos do dia (ignorando cancelados)
         LocalDateTime inicioDoDia = data.atStartOfDay();
         LocalDateTime fimDoDia = data.atTime(LocalTime.MAX);
 
@@ -173,26 +203,43 @@ public class AgendamentoService {
                         barbeiroId,
                         inicioDoDia,
                         fimDoDia,
-                        List.of(StatusAgendamento.CANCELADO_CLIENTE, StatusAgendamento.CANCELADO_BARBEIRO)
+                        List.of(StatusAgendamento.CANCELADO_CLIENTE,
+                                StatusAgendamento.CANCELADO_BARBEIRO)
                 );
 
-        // Filtra os horários que não têm conflito
+        // 6. Filtra horários livres (sem conflito com agendamento e sem bloqueio)
         List<LocalTime> disponiveis = new ArrayList<>();
 
         for (LocalTime horario : todosHorarios) {
             LocalDateTime inicioSlot = data.atTime(horario);
             LocalDateTime fimSlot = inicioSlot.plusMinutes(duracaoMinutos);
 
-            boolean temConflito = agendamentosDoDia.stream()
+            boolean temConflitoAgendamento = agendamentosDoDia.stream()
                     .anyMatch(a -> a.getDataHoraInicio().isBefore(fimSlot)
                             && a.getDataHoraFim().isAfter(inicioSlot));
 
-            if (!temConflito) {
+            boolean temConflitoBloqueio = bloqueioService.existeBloqueioNoPeriodo(
+                    barbeiroId, inicioSlot, fimSlot);
+
+            if (!temConflitoAgendamento && !temConflitoBloqueio) {
                 disponiveis.add(horario);
             }
         }
 
         return disponiveis;
+    }
+
+    // Método auxiliar privado
+    private DiaSemana converterParaDiaSemana(DayOfWeek dayOfWeek) {
+        return switch (dayOfWeek) {
+            case MONDAY    -> DiaSemana.SEGUNDA;
+            case TUESDAY   -> DiaSemana.TERCA;
+            case WEDNESDAY -> DiaSemana.QUARTA;
+            case THURSDAY  -> DiaSemana.QUINTA;
+            case FRIDAY    -> DiaSemana.SEXTA;
+            case SATURDAY  -> DiaSemana.SABADO;
+            case SUNDAY    -> DiaSemana.DOMINGO;
+        };
     }
 
 
@@ -275,7 +322,7 @@ public class AgendamentoService {
         LocalDateTime novaDataHoraFim = novaDataHoraInicio.plusMinutes(duracao);
 
         if (existeConflito(entity.getBarbeiro().getId(), novaDataHoraInicio, novaDataHoraFim, entity.getId())) {
-            throw new BadRequestException("Já existe um agendamento neste novo horário.");
+            throw new BadRequestException("Já existe um agendamento ou bloqueio neste novo horário.");
         }
 
         entity.setDataHoraInicio(novaDataHoraInicio);

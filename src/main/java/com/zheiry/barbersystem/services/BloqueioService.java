@@ -191,10 +191,24 @@ public class BloqueioService {
 
 
     // Método privado de apoio
-    private void validarAgendamentosNoPeriodo(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim){
+    private void validarAgendamentosNoPeriodo(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim) {
         List<StatusAgendamento> statusIgnorados = List.of(
                 StatusAgendamento.CANCELADO_CLIENTE,
                 StatusAgendamento.CANCELADO_BARBEIRO
         );
+
+        List<AgendamentoEntity> agendamentosNoPeriodo = agendamentoRepository
+                .findByBarbeiroIdAndDataHoraInicioBetweenAndStatusAgendamentoNotIn(
+                        barbeiroId,
+                        inicio,
+                        fim,
+                        statusIgnorados
+                );
+
+        if (!agendamentosNoPeriodo.isEmpty()) {
+            throw new BusinessException(
+                    "Existem agendamentos neste período. Cancele-os antes de atualizar o bloqueio"
+            );
+        }
     }
 }
