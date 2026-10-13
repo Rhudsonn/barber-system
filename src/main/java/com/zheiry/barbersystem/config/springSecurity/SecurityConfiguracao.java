@@ -53,34 +53,35 @@ public class SecurityConfiguracao {
 
                         // Cadastro de cliente é público (tela de login).
                         .requestMatchers(HttpMethod.POST, "/clientes").permitAll()
+                        // Somente cliente pode: atualizar informações, alterar senha, excluir conta (exclusao lógica)
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/{id}").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/{id}/senha").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/desativar/{id}").hasRole("CLIENTE")
+                        // Somente (Administrador e barbeiro) tem acesso a lista de clientes ativos
+                        .requestMatchers(HttpMethod.GET,"/clientes/lista/ativo").hasAnyRole("ADMINISTRADOR", "BARBEIRO") //.hasAnyRole - aceita mais de uma role_
+                        // Somente (Administrador e barbeiro) pode buscar por nome
+                        .requestMatchers(HttpMethod.GET,"/clientes/busca/nome").hasAnyRole("ADMINISTRADOR", "BARBEIRO")
+                        // Somente ADMINISTRADOR tem acesso a lista de (clientes inativos)
+                        .requestMatchers(HttpMethod.GET, "/clientes/lista/inativo").hasRole("ADMINISTRADOR")
+
+
 
                         // Somente ADMINISTRADOR pode cadastrar barbeiro.
                         .requestMatchers(HttpMethod.POST, "/barbeiros/**")
                         .hasRole("ADMINISTRADOR")
+                        // Lista de barbeiros ativos: qualquer usuário autenticado.
+                        .requestMatchers(HttpMethod.GET, "/barbeiros/lista/ativos")
+                        .authenticated()
+
+
 
                         // Somente ADMINISTRADOR pode cadastrar serviço.
                         .requestMatchers(HttpMethod.POST, "/servicos/**")
                         .hasRole("ADMINISTRADOR")
-
-                        // Somente ADMINISTRADOR pode criar horário de trabalho do barbeiro.
-                        .requestMatchers(HttpMethod.POST, "/horarios-trabalho")
-                        .hasRole("ADMINISTRADOR")
-
-                        // Somente ADMINISTRADOR pode atualizar horário de trabalho (path com {id}).
-                        .requestMatchers(HttpMethod.PATCH, "/horarios-trabalho/**")
-                        .hasRole("ADMINISTRADOR")
-
-                        // Somente ADMINISTRADOR pode excluir horário de trabalho (path com {id}).
-                        .requestMatchers(HttpMethod.DELETE, "/horarios-trabalho/**")
-                        .hasRole("ADMINISTRADOR")
-
                         // Lista de serviços ativos: qualquer usuário autenticado.
                         .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos")
                         .authenticated()
 
-                        // Lista de barbeiros ativos: qualquer usuário autenticado.
-                        .requestMatchers(HttpMethod.GET, "/barbeiros/lista/ativos")
-                        .authenticated()
 
                         // Qualquer outra rota precisa estar autenticada.
                         .anyRequest().authenticated()
