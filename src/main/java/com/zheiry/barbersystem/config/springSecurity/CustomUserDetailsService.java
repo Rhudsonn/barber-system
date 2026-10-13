@@ -7,12 +7,13 @@ import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.repositories.AdministradorRepository;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
 import com.zheiry.barbersystem.repositories.ClienteRepository;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -43,6 +44,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             boolean isAtivo = Status.ATIVO.equals(administrador.getStatus());
 
             return toUserDetails(
+                    admin.get().getId(),
                     admin.get().getEmail(),
                     admin.get().getSenha(),
                     admin.get().getNivelAcesso().name(), isAtivo
@@ -57,9 +59,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             boolean isAtivo = Status.ATIVO.equals(barbeiro1.getStatus());
 
             return toUserDetails(
+                    barbeiro.get().getId(),
                     barbeiro.get().getEmail(),
                     barbeiro.get().getSenha(),
-                    barbeiro.get().getNivelAcesso().name(),isAtivo
+                    barbeiro.get().getNivelAcesso().name(), isAtivo
             );
         }
 
@@ -71,6 +74,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             boolean isAtivo = Status.ATIVO.equals(cliente1.getStatus());
 
             return toUserDetails(
+                    cliente.get().getId(),
                     cliente.get().getEmail(),
                     cliente.get().getSenha(),
                     cliente.get().getNivelAcesso().name(), isAtivo
@@ -81,12 +85,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         throw new UsernameNotFoundException("Usuário não encontrado: " + email);
     }
 
-    private UserDetails toUserDetails(String email, String senha, String role, boolean ativo) {
-        return User.builder()
-                .username(email)
-                .password(senha)
-                .roles(role)          // Spring adiciona o prefixo ROLE_ automaticamente
-                .disabled(!ativo)
-                .build();
+
+    private UserDetails toUserDetails(Long id, String email, String senha, String role, boolean ativo) {
+        return new UsuarioAutenticado(
+                id,
+                email,
+                senha,
+                List.of(new SimpleGrantedAuthority("ROLE_" + role)),
+                ativo
+        );
+
     }
 }
