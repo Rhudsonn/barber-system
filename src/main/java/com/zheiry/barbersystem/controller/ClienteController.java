@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.controller;
 
+import com.zheiry.barbersystem.dto.cliente.ClienteAlteraSenhaDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
@@ -28,8 +29,8 @@ public class ClienteController {
 
 
     //Listar clientes com status ativo.
-    @GetMapping("lista/ativo")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @GetMapping("/lista/ativo")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'BARBEIRO')")
     public ResponseEntity<List<ClienteSaidaDto>> listaClientesStatusAtivo(){
         return ResponseEntity.ok(service.listaClientesStatusAtivo());
     }
@@ -43,7 +44,8 @@ public class ClienteController {
 
 
     // Buscar cliente por Nome.
-    @GetMapping
+    @GetMapping("/busca/nome")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'BARBEIRO')")
     public ResponseEntity<List<ClienteSaidaDto>> buscarPorNome(@RequestParam String nome){
         return ResponseEntity.ok(service.buscarPorNome(nome));
     }
@@ -57,8 +59,35 @@ public class ClienteController {
     // Atualizar informações.
     //Não atualizo todos os dados, pode ser atualizado os campos que quiser.
     @PatchMapping("{id}")
+    @PreAuthorize("hasRole('CLIENTE') and #id == authentication.principal.id")
     public ResponseEntity<ClienteSaidaDto> atualizarInformacoes(@PathVariable Long id, @RequestBody @Valid ClienteAtualizaDto dto){
         return ResponseEntity.ok(service.atualizarInformacoesCliente(id,dto));
+    }
+
+
+    //Alterar senha - somente o cliente pode alterar sua senha
+    @PatchMapping("/{id}/senha")
+    @PreAuthorize("hasRole('CLIENTE') and #id == authentication.principal.id")
+    public ResponseEntity<Void> alterarSenha(@PathVariable Long id, @RequestBody @Valid ClienteAlteraSenhaDto dto){
+        service.alterarSenha(id,dto);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    // Desativar cliente - exclusão lógica
+    @PatchMapping("/desativar/{id}")
+    @PreAuthorize("hasRole('CLIENTE') and #id == authentication.principal.id")
+    public ResponseEntity<Void> desativar(@PathVariable Long id) {
+        service.desativarCliente(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Reativar cliente - (controle do ADMINISTRADOR)
+    @PatchMapping("/{id}/reativar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> reativar(@PathVariable Long id) {
+        service.reativarCliente(id);
+        return ResponseEntity.noContent().build();
     }
 
 

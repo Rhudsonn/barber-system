@@ -14,6 +14,7 @@ import com.zheiry.barbersystem.mappers.ClienteMapper;
 import com.zheiry.barbersystem.repositories.ClienteRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -76,7 +77,7 @@ public class ClienteService {
     }
 
     // Listar clientes com status --- ativo
-    public List<ClienteSaidaDto> listaClientesStatusAtivo(){
+    public List<ClienteSaidaDto> listaClientesStatusAtivo() {
         return listaClientesPorStatus(Status.ATIVO);
     }
 
@@ -151,6 +152,54 @@ public class ClienteService {
         }
         // Criptografa e salva a nova senha.
         cliente.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        repository.save(cliente);
+    }
+
+    // Desativar cliente - exclusão lógica
+    @Transactional
+    public void desativarCliente(Long id) {
+        ClienteEntity cliente = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+
+        // Segurança: só o próprio cliente ou um ADMIN pode desativar
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")); // ajuste conforme seu JWT
+
+        if (!cliente.getEmail().equals(emailLogado) && !isAdmin) {
+            throw new AccessDeniedException("Você não tem permissão para desativar este cliente!");
+        }
+
+        // Já está inativo?
+        if (cliente.getStatus() == Status.INATIVO) {
+            throw new BadRequestException("Cliente já está desativado!");
+        }
+
+        cliente.setStatus(Status.INATIVO);
+        repository.save(cliente);
+    }
+
+    // Reativar cliente - (controle do ADMINISTRADOR)
+    @Transactional
+    public void reativarCliente(Long id) {
+        ClienteEntity cliente = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+
+        // Apenas ADMIN pode reativar
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            throw new AccessDeniedException("Apenas administradores podem reativar clientes!");
+        }
+
+        if (cliente.getStatus() == Status.ATIVO) {
+            throw new BadRequestException("Cliente já está ativo!");
+        }
+
+        cliente.setStatus(Status.ATIVO);
         repository.save(cliente);
     }
 

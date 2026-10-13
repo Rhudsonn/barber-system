@@ -67,7 +67,9 @@ public class BarbeiroController {
 
 
     // Alterar senha - somente o barbeiro tem altorização
-    @PatchMapping("/{id}/senha") public ResponseEntity<Void> alterarSenha(@PathVariable Long id, @RequestBody @Valid BarbeiroAlteraSenhaDto dto) {
+    @PatchMapping("/{id}/senha")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<Void> alterarSenha(@PathVariable Long id, @RequestBody @Valid BarbeiroAlteraSenhaDto dto) {
         service.alterarSenha(id, dto);
         return ResponseEntity.noContent().build(); // 204 No Content
     }
