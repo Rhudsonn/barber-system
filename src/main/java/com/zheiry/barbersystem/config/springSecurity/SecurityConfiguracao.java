@@ -53,25 +53,21 @@ public class SecurityConfiguracao {
 
                         // Cadastro de cliente é público (tela de login).
                         .requestMatchers(HttpMethod.POST, "/clientes").permitAll()
-                        // Somente cliente pode: atualizar informações, alterar senha, excluir conta (exclusao lógica)
-                        .requestMatchers(HttpMethod.PATCH, "/clientes/{id}").hasRole("CLIENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/clientes/{id}/senha").hasRole("CLIENTE")
-                        .requestMatchers(HttpMethod.PATCH, "/clientes/desativar/{id}").hasRole("CLIENTE")
-                        // Somente (Administrador e barbeiro) tem acesso a lista de clientes ativos
-                        .requestMatchers(HttpMethod.GET,"/clientes/lista/ativo").hasAnyRole("ADMINISTRADOR", "BARBEIRO") //.hasAnyRole - aceita mais de uma role_
-                        // Somente (Administrador e barbeiro) pode buscar por nome
+
+                        .requestMatchers(HttpMethod.GET,"/clientes/ativos").hasAnyRole("ADMINISTRADOR", "BARBEIRO") //.hasAnyRole - aceita mais de uma role_
+                        .requestMatchers(HttpMethod.GET, "/clientes/inativos").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET,"/clientes/busca/nome").hasAnyRole("ADMINISTRADOR", "BARBEIRO")
-                        // Somente ADMINISTRADOR tem acesso a lista de (clientes inativos)
-                        .requestMatchers(HttpMethod.GET, "/clientes/lista/inativo").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/meu-perfil/{id}").hasRole("CLIENTE") // Alterar informações
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/meu-perfil/senha/{id}").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/delete/{id}").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/clientes/reativar/{id}").hasRole("ADMINISTRADOR")
 
 
-
-                        // Somente ADMINISTRADOR pode cadastrar barbeiro.
-                        .requestMatchers(HttpMethod.POST, "/barbeiros/**")
-                        .hasRole("ADMINISTRADOR")
-                        // Lista de barbeiros ativos: qualquer usuário autenticado.
-                        .requestMatchers(HttpMethod.GET, "/barbeiros/lista/ativos")
-                        .authenticated()
+                        .requestMatchers(HttpMethod.POST, "/barbeiros/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/barbeiros/ativos").hasAnyRole("BARBEIRO", "CLIENTE", "ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/barbeiros/inativos").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/barbeiros/busca/nome").hasAnyRole("CLIENTE", "BARBEIRO", "ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.PATCH, "/barbeiros/meu-perfil/{id}").hasRole("BARBEIRO")
 
 
 
