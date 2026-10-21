@@ -1,14 +1,19 @@
 package com.zheiry.barbersystem.controller;
 
+import com.zheiry.barbersystem.config.springSecurity.UsuarioAutenticado;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAlteraSenhaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
+import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.services.BarbeiroService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,37 +37,40 @@ public class BarbeiroController {
     }
 
 
-    // Lista de barbeiros ATIVOS.
-    @GetMapping("/lista/ativos")
-    public ResponseEntity<List<BarbeiroSaidaDto>> listaBarbeirosAtivos(){
-        return ResponseEntity.ok(service.listaBarbeirosAtivos());
+    // Lista de barbeiros ativo
+    @GetMapping("/ativos")
+    @PreAuthorize("hasAnyRole('CLIENTE','BARBEIRO', 'ADMINISTRADOR')")
+    public ResponseEntity<List<?>> listarAtivos(Authentication authentication) {
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
+
+        if (isAdmin){
+            return ResponseEntity.status(HttpStatus.OK).body(service.listaPorStatusAdmin(Status.ATIVO));
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(service.listarAtivos());
     }
 
-    // Lista de barbeiros INATIVOS - somente administrador tem altorização.
-    @GetMapping("/lista/inativos")
+    // Lista Inativos
+    @GetMapping("/inativos")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<List<BarbeiroSaidaDto>> listaBarbeirosInativos(){
-        return ResponseEntity.ok(service.listaBarbeirosInativos());
+    public ResponseEntity<List<BarbeiroSaidaDto>> listarInativos(){
+        return ResponseEntity.status(HttpStatus.OK).body(service.listaPorStatusAdmin(Status.INATIVO));
     }
+
+
 
     // Buscar barbeiro por nome.
-    @GetMapping
-    public ResponseEntity<List<BarbeiroSaidaDto>> buscarPorNome(@RequestParam String nome){
-        return ResponseEntity.ok(service.buscarPorNome(nome));
-    }
-
-    // Buscar barbeiro por ID.
-    @GetMapping("/{id}")
-    public ResponseEntity<BarbeiroSaidaDto> buscarPorId(@PathVariable Long id){
-        return ResponseEntity.ok(service.buscarBarbeiroPorId(id));
+    @GetMapping("/busca/nome")
+    public ResponseEntity<List<?>> buscarPorNome(@RequestParam String nome){
+        return ResponseEntity.status(HttpStatus.OK).body(service.buscarPorNome(nome));
     }
 
 
-    // Atualizar informações.
-    //Não atualizo todos os dados, pode ser atualizado os campos que quiser.
-    @PatchMapping("/{id}")
+    @PatchMapping("/meu-perfil/{id}")
+    @PreAuthorize("hasRole('BARBEIRO') and #id == authentication.principal.id")
     public ResponseEntity<BarbeiroSaidaDto> atualizarInformacoes(@PathVariable Long id, @RequestBody @Valid BarbeiroAtualizaDto dto) {
-        return ResponseEntity.ok(service.atualizarInformacoesBarbeiro(id, dto));
+        return ResponseEntity.status(HttpStatus.OK).body(service.atualizarInformacoes(id, dto));
     }
 
 

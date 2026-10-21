@@ -1,9 +1,7 @@
 package com.zheiry.barbersystem.services;
 
-import com.zheiry.barbersystem.dto.cliente.ClienteAlteraSenhaDto;
-import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
-import com.zheiry.barbersystem.dto.cliente.ClienteDto;
-import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
+import com.zheiry.barbersystem.config.springSecurity.UsuarioAutenticado;
+import com.zheiry.barbersystem.dto.cliente.*;
 import com.zheiry.barbersystem.entities.ClienteEntity;
 import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
@@ -20,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class ClienteService {
@@ -70,35 +69,45 @@ public class ClienteService {
     }
 
 
-    // Médoto que lista clientes por status
-    public List<ClienteSaidaDto> listaClientesPorStatus(Status status){
+    // Lista para o Administrador (DTO completo)
+    public List<ClienteSaidaDto> listarPorStatusAdmin(Status status) {
         List<ClienteEntity> clientes = repository.findByStatus(status);
         return ClienteMapper.toSaidaDtoList(clientes);
     }
 
-    // Listar clientes com status --- ativo
-    public List<ClienteSaidaDto> listaClientesStatusAtivo() {
-        return listaClientesPorStatus(Status.ATIVO);
-    }
-
-    // Listar clientes com status --- inativo
-    public List<ClienteSaidaDto> listaClientesStatusInativo(){
-        return listaClientesPorStatus(Status.INATIVO);
+    // Lista para o Barbeiro (só ATIVO + DTO resumido)
+    public List<ClienteSaidaResumoDto> listarAtivosParaBarbeiro() {
+        List<ClienteEntity> clientes = repository.findByStatus(Status.ATIVO);
+        return ClienteMapper.toSaidaResumoDtoList(clientes);
     }
 
 
 
     // Buscar por Nome.
-    public List<ClienteSaidaDto> buscarPorNome(String nome){
+    // ADMINISTRADO - Lista completa.
+    // BARBEIRO - Lista com informacoes necessarias.
+    public List<?> buscarPorNome(String nome) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isStaff = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR")
+                        || a.getAuthority().equals("ROLE_BARBEIRO"));
+
+        if (!isStaff) {
+            throw new AccessDeniedException("Apenas administrador ou barbeiro podem buscar clientes por nome!");
+        }
+
         List<ClienteEntity> clientes = repository.findByNomeContainingIgnoreCase(nome);
+
+        boolean isBarbeiro = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_BARBEIRO"));
+
+        if (isBarbeiro){
+            return ClienteMapper.toSaidaResumoDtoList(clientes);
+        }
+
         return ClienteMapper.toSaidaDtoList(clientes);
     }
 
-    // Buscar por ID.
-    public ClienteSaidaDto burcarClientePorId(Long id){
-        ClienteEntity cliente = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
-        return ClienteMapper.toSaidaDto(cliente);
-    }
 
     // Atualizar informações de cadastro.
     @Transactional
@@ -108,8 +117,8 @@ public class ClienteService {
         // Pega o email do usuario autenticado (vem do JWT).
         String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         // Só permite atualizar se o email for o mesmo do cliente.
-        if(!cliente.getEmail().equals(emailLogado)){
-            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
+        if (!Objects.equals(cliente.getEmail(), emailLogado)) {
+            throw new AccessDeniedException("Acesso negado!");
         }
         // Valida se o novo email ja esta em uso por outro usuario.
         if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
@@ -135,9 +144,10 @@ public class ClienteService {
         // Pega o email do usuario logado (vem do JWT).
         String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         // Só permite se o email logado for o mesmo do cliente.
-        if (!cliente.getEmail().equals(emailLogado)){
-            throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
+        if (!Objects.equals(cliente.getEmail(), emailLogado)) {
+            throw new AccessDeniedException("Você só pode alterar sua propria senha!");
         }
+
         // Valida a senha atual.
         if (!passwordEncoder.matches(dto.senhaAtual(),cliente.getSenha())){
             throw new BadRequestException("Senha atual incorreta!");
@@ -165,7 +175,7 @@ public class ClienteService {
         String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")); // ajuste conforme seu JWT
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR")); // ajuste conforme seu JWT
 
         if (!cliente.getEmail().equals(emailLogado) && !isAdmin) {
             throw new AccessDeniedException("Você não tem permissão para desativar este cliente!");
@@ -189,7 +199,7 @@ public class ClienteService {
         // Apenas ADMIN pode reativar
         boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
 
         if (!isAdmin) {
             throw new AccessDeniedException("Apenas administradores podem reativar clientes!");

@@ -1,9 +1,7 @@
 package com.zheiry.barbersystem.services;
 
-import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAlteraSenhaDto;
-import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
-import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
-import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
+
+import com.zheiry.barbersystem.dto.barbeiro.*;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
@@ -19,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class BarbeiroService {
@@ -77,86 +76,128 @@ public class BarbeiroService {
     }
 
 
-
-
-    public List<BarbeiroSaidaDto> listaBarbeirosPorStatus(Status status){
-        // Busca no banco os barbeiros que possuem o status informado.
-        // Pode ser ATIVO ou INATIVO.
+    // Lista para Administrador (Dto COMPLETO)
+    public List<BarbeiroSaidaDto> listaPorStatusAdmin(Status status){
         List<BarbeiroEntity> barbeiros = repository.findByStatus(status);
-        // Envia a lista de Entities para o Mapper,
-        // que converte cada Entity em um BarbeiroSaidaDto.
         return BarbeiroMapper.toSaidaDtoList(barbeiros);
     }
 
-    public List<BarbeiroSaidaDto> listaBarbeirosAtivos(){
-        // Reaproveita o método anterior,
-        // informando que queremos somente barbeiros ATIVOS.
-        return listaBarbeirosPorStatus(Status.ATIVO);
-    }
-
-    public List<BarbeiroSaidaDto> listaBarbeirosInativos(){
-        // Reaproveita o método anterior,
-        // informando que queremos somente barbeiros INATIVOS.
-        return listaBarbeirosPorStatus(Status.INATIVO);
+    // Lista para Clientes e Barbeiros (Dto RESUMIDO)
+    public List<BarbeiroSaidaResumoDto> listarAtivos(){
+        List<BarbeiroEntity> barbeiros = repository.findByStatus(Status.ATIVO);
+        return BarbeiroMapper.toSaidaResumoDtoList(barbeiros);
     }
 
 
-    public List<BarbeiroSaidaDto> buscarPorNome(String nome){
 
-        // Recebe o nome que será utilizado na pesquisa.
-        // "Containing" = contém o texto.
-        // "IgnoreCase" = ignora diferença entre maiúsculas e minúsculas.
+    // Buscar por Nome
+    public List<?> buscarPorNome(String nome){
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isStaff = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR")
+                        || a.getAuthority().equals("ROLE_CLIENTE") || a.getAuthority().equals("ROLE_BARBEIRO"));
+
+        if (!isStaff) {
+            throw new AccessDeniedException("Acesso negado!");
+        }
+
         List<BarbeiroEntity> barbeiros = repository.findByNomeContainingIgnoreCase(nome);
 
-        // A lista de Entities encontrada no banco é enviada
-        // para o Mapper.
-        // O Mapper converte
-        return BarbeiroMapper.toSaidaDtoList(barbeiros);
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
+
+        if(isAdmin){
+            return BarbeiroMapper.toSaidaDtoList(barbeiros);
+        }
+        return BarbeiroMapper.toSaidaResumoDtoList(barbeiros);
     }
 
-
-    public BarbeiroSaidaDto buscarBarbeiroPorId(Long id){
-        // Valida se existe, se não existir lança uma excesao
-        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
-        // Converte a Entity encontrada para o DTO de saída.
-        return BarbeiroMapper.toSaidaDto(barbeiro);
-    }
 
 
     @Transactional
-    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto) {
+    public BarbeiroSaidaDto atualizarInformacoes(Long id, BarbeiroAtualizaDto dto){
 
-        // Busca o barbeiro. Se não existir, lança 404.
-        BarbeiroEntity barbeiro = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+        BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
 
-        // Pega o e-mail do usuário autenticado (vem do JWT)
-        String emailLogado = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // Só permite se o e-mail logado for o mesmo do barbeiro
-        if (!barbeiro.getEmail().equals(emailLogado)) {
-            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
+        if (!Objects.equals(barbeiro.getEmail(), emailLogado)) {
+            throw new AccessDeniedException("Acesso negado!");
         }
 
-        // Valida se o novo e-mail já está em uso por outro usuário
         if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
             throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
         }
 
-        // Valida se o novo telefone já está em uso por outro usuário
         if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)) {
             throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
         }
 
-        // Aplica apenas os campos que vieram preenchidos no DTO
         BarbeiroMapper.atualizarEntity(dto, barbeiro);
-
-        // Salva e retorna o DTO de saída
         repository.save(barbeiro);
         return BarbeiroMapper.toSaidaDto(barbeiro);
     }
+
+//    @Transactional
+//    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(BarbeiroAtualizaDto dto) {
+//
+//        String emailLogado = SecurityContextHolder.getContext()
+//                .getAuthentication()
+//                .getName();
+//
+//        BarbeiroEntity barbeiro = repository.findByEmail(emailLogado)
+//                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+//
+//        // Validações de e-mail e telefone (iguais às suas)
+//        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), barbeiro.getId())) {
+//            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
+//        }
+//
+//        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), barbeiro.getId())) {
+//            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
+//        }
+//
+//        BarbeiroMapper.atualizarEntity(dto, barbeiro);
+//        repository.save(barbeiro);
+//
+//        return BarbeiroMapper.toSaidaDto(barbeiro);
+//    }
+
+
+//    @Transactional
+//    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto) {
+//
+//        // Busca o barbeiro. Se não existir, lança 404.
+//        BarbeiroEntity barbeiro = repository.findById(id)
+//                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
+//
+//        // Pega o e-mail do usuário autenticado (vem do JWT)
+//        String emailLogado = SecurityContextHolder.getContext()
+//                .getAuthentication()
+//                .getName();
+//
+//        // Só permite se o e-mail logado for o mesmo do barbeiro
+//        if (!barbeiro.getEmail().equals(emailLogado)) {
+//            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
+//        }
+//
+//        // Valida se o novo e-mail já está em uso por outro usuário
+//        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
+//            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
+//        }
+//
+//        // Valida se o novo telefone já está em uso por outro usuário
+//        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)) {
+//            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
+//        }
+//
+//        // Aplica apenas os campos que vieram preenchidos no DTO
+//        BarbeiroMapper.atualizarEntity(dto, barbeiro);
+//
+//        // Salva e retorna o DTO de saída
+//        repository.save(barbeiro);
+//        return BarbeiroMapper.toSaidaDto(barbeiro);
+//    }
 
 
     @Transactional
@@ -171,6 +212,9 @@ public class BarbeiroService {
                 .getName();   // retorna o e-mail (subject do token)
 
         // Só permite se o e-mail logado for o mesmo do barbeiro
+        if (!Objects.equals(barbeiro.getEmail(), emailLogado)) {
+            throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
+        }
         if (!barbeiro.getEmail().equals(emailLogado)) {
             throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
         }
@@ -201,6 +245,13 @@ public class BarbeiroService {
 
         BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
+
+        if (!isAdmin){
+            throw new AccessDeniedException("Você não tem permissão para desativar Barbeiro!");
+        }
+
         // Evitar tentativas de desativar alguem que ja esta INATIVO
         if (barbeiro.getStatus() == Status.INATIVO) {
             throw new BadRequestException("Este barbeiro já esta desativado!");
@@ -216,6 +267,13 @@ public class BarbeiroService {
     public void reativarBarbeiro(Long id) {
 
         BarbeiroEntity barbeiro = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
+
+        if (!isAdmin){
+            throw new AccessDeniedException("Você não tem permissão para ativar barbeiro!");
+        }
 
         // Evitar reativar barbeiro que ja esta ATIVO
         if (barbeiro.getStatus() == Status.ATIVO) {

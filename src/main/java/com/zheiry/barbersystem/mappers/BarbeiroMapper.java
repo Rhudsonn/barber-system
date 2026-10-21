@@ -5,6 +5,7 @@ package com.zheiry.barbersystem.mappers;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroAtualizaDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroDto;
 import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaDto;
+import com.zheiry.barbersystem.dto.barbeiro.BarbeiroSaidaResumoDto;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 
 import java.util.List;
@@ -60,6 +61,18 @@ public class BarbeiroMapper {
         );
     }
 
+    // Entity - dto saida com dados resumidos
+    public static BarbeiroSaidaResumoDto toSaidaResumoDto(BarbeiroEntity entity){
+        if(entity == null) return null;
+
+        return new BarbeiroSaidaResumoDto(
+                entity.getId(),
+                entity.getNome(),
+                entity.getTelefone(),
+                entity.getEspecialidade()
+        );
+    }
+
     //Converte uma lista de Entities em uma lista de DTOs de saída.
     //Reaproveita o método individual acima, evitando duplicação
     //@param entities lista vinda do repositório
@@ -71,6 +84,17 @@ public class BarbeiroMapper {
 
         return entities.stream()
                 .map(BarbeiroMapper::toSaidaDto)
+                .toList();
+    }
+
+
+    public static List<BarbeiroSaidaResumoDto> toSaidaResumoDtoList(List<BarbeiroEntity> entities) {
+        if (entities == null) {
+            return List.of();
+        }
+
+        return entities.stream()
+                .map(BarbeiroMapper::toSaidaResumoDto)
                 .toList();
     }
 

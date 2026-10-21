@@ -3,6 +3,7 @@ package com.zheiry.barbersystem.mappers;
 import com.zheiry.barbersystem.dto.cliente.ClienteAtualizaDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteDto;
 import com.zheiry.barbersystem.dto.cliente.ClienteSaidaDto;
+import com.zheiry.barbersystem.dto.cliente.ClienteSaidaResumoDto;
 import com.zheiry.barbersystem.entities.ClienteEntity;
 
 import java.util.List;
@@ -58,6 +59,20 @@ public class ClienteMapper {
 
     }
 
+
+    // Entity para Dto
+    // Este metodo vai me ajudar listar cliente para o barbeiro com apenas informações necessarias.
+    public static ClienteSaidaResumoDto toSaidaResumoDto(ClienteEntity entity) {
+        if (entity == null) return null;
+
+        return new ClienteSaidaResumoDto(
+                entity.getId(),
+                entity.getNome(),
+                entity.getTelefone(),
+                entity.getStatus()
+        );
+    }
+
     //Converte uma lista de Entities em uma lista de DTOs de saída.
     //Reaproveita o método individual acima, evitando duplicação
     //@param entities lista vinda do repositório
@@ -70,6 +85,17 @@ public class ClienteMapper {
         return entities.stream()
                 .map(ClienteMapper::toSaidaDto)
                 .toList();
+    }
+
+
+    public static List<ClienteSaidaResumoDto> toSaidaResumoDtoList(List<ClienteEntity> entities) {
+        if (entities == null) {
+            return List.of();
+        }
+
+       return entities.stream()
+               .map(ClienteMapper::toSaidaResumoDto)
+               .toList();
     }
 
 
