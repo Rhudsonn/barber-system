@@ -81,7 +81,6 @@ public class CustomUserDetailsService implements UserDetailsService {
             );
 
         }
-
         throw new UsernameNotFoundException("Usuário não encontrado: " + email);
     }
 
@@ -94,6 +93,5 @@ public class CustomUserDetailsService implements UserDetailsService {
                 List.of(new SimpleGrantedAuthority("ROLE_" + role)),
                 ativo
         );
-
     }
 }
