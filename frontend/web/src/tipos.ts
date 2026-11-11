@@ -1,0 +1,11 @@
+export type Perfil = 'CLIENTE' | 'BARBEIRO' | 'ADMINISTRADOR'
+export type Sessao = { token: string; tipo: string; usuarioId: number; perfil: Perfil }
+export type PerfilUsuario = { id: number; nome: string; email: string; telefone?: string; dataNascimento?: string; especialidade?: string; fotoUrl?: string; status?: string }
+export type Barbearia = { id: number; nomeFantasia: string; razaoSocial?: string; cnpj?: string; cep?: string; telefone?: string; whatsapp?: string; instagram?: string; email?: string; endereco?: string; cidade?: string; estado?: string; descricao?: string; logoUrl?: string; horarios?: { diaSemana: string; horaAbertura: string; horaFechamento: string; fechado: boolean }[] }
+export type Servico = { id: number; nome: string; descrica?: string; categoria: string; preco: number; duracaoEmMinutos: number; porcentagemBarbearia?: number }
+export type Barbeiro = { id: number; nome: string; especialidade?: string; fotoUrl?: string; telefone?: string; status?: string }
+export type Cliente = { id: number; nome: string; telefone?: string; email?: string; status?: string }
+export type Agendamento = { id: number; clienteId?: number | null; clienteNome: string; clienteTelefone?: string | null; barbeiroId: number; barbeiroNome: string; servicoId: number; servicoNome: string; servicoDuracaoMinutos: number; servicoPreco: number; dataHoraInicio: string; dataHoraFim: string; statusAgendamento: string; formaPagamento?: 'PIX' | 'CARTAO' | 'DINHEIRO' | null; valorTotalComanda?: number | null; observacao?: string }
+export type HistoricoAgendamento = { id: number; tipoEvento: 'CONCLUIDO' | 'CANCELADO' | 'REAGENDADO' | 'NAO_COMPARECEU'; registradoEm: string; usuarioId?: number | null; usuarioEmail?: string | null; perfilUsuario?: string | null; clienteId?: number | null; clienteNome: string; barbeiroId: number; barbeiroNome: string; servicoId: number; servicoNome: string; valorServico?: number | null; servicoAdicionalId?: number | null; servicoAdicionalNome?: string | null; valorServicoAdicional?: number | null; dataHoraAnterior?: string | null; dataHoraNova?: string | null; formaPagamento?: string | null; valorTotalComanda?: number | null }
+export type Pagina<T> = { content: T[]; totalElements: number; totalPages: number; number: number }
+export type ErroApi = { mensagem: string }

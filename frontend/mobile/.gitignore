@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+.expo-local/
+.tmp-export/
+dist/
+.env
+.env.*
+!.env.example

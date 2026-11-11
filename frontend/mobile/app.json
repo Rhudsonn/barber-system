@@ -1,0 +1,1 @@
+{ "expo": { "name": "Barber System", "slug": "barber-system", "version": "1.0.0", "orientation": "portrait", "userInterfaceStyle": "dark", "splash": { "backgroundColor": "#09090b" }, "ios": { "supportsTablet": true }, "android": { "adaptiveIcon": { "backgroundColor": "#09090b" }, "package": "com.barbersystem.app" }, "plugins": ["expo-secure-store"] } }
