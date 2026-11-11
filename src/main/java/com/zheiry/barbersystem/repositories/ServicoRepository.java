@@ -20,7 +20,6 @@ public interface ServicoRepository extends JpaRepository<ServicoEntity, Long> {
 
     List<ServicoEntity> findByNomeContainingIgnoreCase(String nome);
 
-//    List<ServicoEntity> findByCategoriaContainingIgnoreCase(String categoria);
 
 
 }

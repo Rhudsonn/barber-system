@@ -71,12 +71,6 @@ public class ServicoService {
         return ServicoMapper.toSaidaDto(entity);
     }
 
-    // Buscar por Categoria.
-//    public List<ServicoSaidaDto> buscarPorCategoria(String categoria){
-//        List<ServicoEntity> servicos = repository.findByCategoriaContainingIgnoreCase(categoria);
-//        return ServicoMapper.toSaidaDtoList(servicos);
-//    }
-
     // Atualizar informações.
     @Transactional
     public ServicoSaidaDto atualizarServico(Long id, ServicoAtualizarDto dto){

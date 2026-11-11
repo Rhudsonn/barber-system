@@ -51,12 +51,6 @@ public class ServicoController {
         return ResponseEntity.ok(service.buscarPorNome(nome));
     }
 
-    // Buscar por categoria.
-//    @GetMapping("/categoria")
-//    public ResponseEntity<List<ServicoSaidaDto>> buscarPorCategoria(@RequestParam String categoria){
-//        return ResponseEntity.ok(service.buscarPorCategoria(categoria));
-//    }
-
     // Buscar por ID.
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")

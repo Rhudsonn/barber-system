@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Segredos e configurações de ambiente locais.
+.env
+.env.*
+!.env.example
+
+# Artefatos locais de build
+/.tmp-build/
+/hs_err_pid*.log

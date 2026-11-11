@@ -39,5 +39,3 @@ export async function requisicao<T>(rota: string, opcoes: RequestInit = {}, sess
   }
   return corpo as T
 }
-
-export const apiBase = base
