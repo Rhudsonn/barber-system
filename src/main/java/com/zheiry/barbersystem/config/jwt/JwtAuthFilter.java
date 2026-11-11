@@ -49,7 +49,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                if (jwtService.tokenValido(token, userDetails)) {
+                if (userDetails.isEnabled() && jwtService.tokenValido(token, userDetails)) {
 
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(

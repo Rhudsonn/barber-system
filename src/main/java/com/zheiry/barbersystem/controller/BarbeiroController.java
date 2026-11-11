@@ -39,10 +39,9 @@ public class BarbeiroController {
 
     // Lista de barbeiros ativo
     @GetMapping("/ativos")
-    @PreAuthorize("hasAnyRole('CLIENTE','BARBEIRO', 'ADMINISTRADOR')")
     public ResponseEntity<List<?>> listarAtivos(Authentication authentication) {
 
-        boolean isAdmin = authentication.getAuthorities().stream()
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"));
 
         if (isAdmin){
@@ -75,8 +74,8 @@ public class BarbeiroController {
 
 
     // Alterar senha - somente o barbeiro tem altorização
-    @PatchMapping("/{id}/senha")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PatchMapping("/senha/{id}")
+    @PreAuthorize("hasRole('BARBEIRO') and #id == authentication.principal.id")
     public ResponseEntity<Void> alterarSenha(@PathVariable Long id, @RequestBody @Valid BarbeiroAlteraSenhaDto dto) {
         service.alterarSenha(id, dto);
         return ResponseEntity.noContent().build(); // 204 No Content

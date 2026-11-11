@@ -7,8 +7,11 @@ import java.time.LocalDateTime;
 
 public record AgendamentoDto(
 
-        @NotNull(message = "O ID do cliente é obrigatório.")
         Long clienteId,
+
+        String clienteAvulsoNome,
+
+        String clienteAvulsoTelefone,
 
         @NotNull(message = "O ID do barbeiro é obrigatório.")
         Long barbeiroId,
@@ -23,4 +26,7 @@ public record AgendamentoDto(
         String observacao   // opcional
 
 ) {
+    public AgendamentoDto(Long clienteId, Long barbeiroId, Long servicoId, LocalDateTime dataHoraInicio, String observacao) {
+        this(clienteId, null, null, barbeiroId, servicoId, dataHoraInicio, observacao);
+    }
 }

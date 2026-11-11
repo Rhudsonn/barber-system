@@ -13,12 +13,14 @@ public record BarbeariaSaidaDto(
         String cnpj,
         String telefone,
         String whatsapp,
+        String instagram,
         String email,
         String endereco,
         String cidade,
         String estado,
         String cep,
         String descricao,
+        String logoUrl,
         List<HorarioFuncionamentoSaidaDto> horarios
 
 ) {

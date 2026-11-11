@@ -25,6 +25,9 @@ public record BarbeariaDto(
         @Size(max = 20, message = "WhatsApp deve ter no máximo 20 caracteres.")
         String whatsapp,
 
+        @Size(max = 2048, message = "O link do Instagram deve ter no máximo 2048 caracteres.")
+        String instagram,
+
         @NotBlank(message = "E-mail é obrigatório.")
         @Email(message = "E-mail inválido.")
         @Size(max = 120, message = "E-mail deve ter no máximo 120 caracteres.")

@@ -4,6 +4,8 @@ import com.zheiry.barbersystem.dto.agendamento.AgendamentoAtualizarStatusDto;
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoDto;
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoReagendarDto;
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoSaidaDto;
+import com.zheiry.barbersystem.dto.agendamento.FecharComandaDto;
+import com.zheiry.barbersystem.dto.agendamento.HistoricoAgendamentoDto;
 import com.zheiry.barbersystem.exception.BadRequestException;
 import com.zheiry.barbersystem.services.AgendamentoService;
 import jakarta.validation.Valid;
@@ -46,6 +48,12 @@ public class AgendamentoController {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
+    @GetMapping("/{id}/historico")
+    @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR', 'CLIENTE')")
+    public ResponseEntity<List<HistoricoAgendamentoDto>> listarHistorico(@PathVariable Long id) {
+        return ResponseEntity.ok(service.listarHistorico(id));
+    }
+
 
     // Lista agendamentos de um cliente (paginado).
     @GetMapping("/cliente/{clienteId}")
@@ -54,6 +62,15 @@ public class AgendamentoController {
             @PathVariable Long clienteId,
             Pageable pageable) {
         return ResponseEntity.ok(service.listarPorCliente(clienteId, pageable));
+    }
+
+    @GetMapping("/cliente/{clienteId}/periodo")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMINISTRADOR')")
+    public ResponseEntity<List<AgendamentoSaidaDto>> listarPorClienteEPeriodo(
+            @PathVariable Long clienteId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
+        return ResponseEntity.ok(service.listarPorClienteEPeriodo(clienteId, inicio, fim));
     }
 
 
@@ -69,11 +86,28 @@ public class AgendamentoController {
 
     // Lista agendamentos de um barbeiro em uma data específica.
     @GetMapping("/barbeiro/{barbeiroId}/data")
-    @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR', 'CLIENTE')")
+    @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR')")
     public ResponseEntity<List<AgendamentoSaidaDto>> listarPorBarbeiroEData(
             @PathVariable Long barbeiroId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
         return ResponseEntity.ok(service.listarPorBarbeiroEData(barbeiroId, data));
+    }
+
+    @GetMapping("/barbeiro/{barbeiroId}/periodo")
+    @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR')")
+    public ResponseEntity<List<AgendamentoSaidaDto>> listarPorBarbeiroEPeriodo(
+            @PathVariable Long barbeiroId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
+        return ResponseEntity.ok(service.listarPorBarbeiroEPeriodo(barbeiroId, inicio, fim));
+    }
+
+    @GetMapping("/periodo")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<List<AgendamentoSaidaDto>> listarTodosNoPeriodo(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
+        return ResponseEntity.ok(service.listarTodosNoPeriodo(inicio, fim));
     }
 
 
@@ -99,7 +133,7 @@ public class AgendamentoController {
 
 
     //ATUALIZAR STATUS
-    // Atualiza o status de um agendamento.
+    // Atualiza o status respeitando a responsabilidade do barbeiro e a máquina de estados.
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR')")
     public ResponseEntity<AgendamentoSaidaDto> atualizarStatus(
@@ -110,24 +144,20 @@ public class AgendamentoController {
     }
 
     // CANCELAMENTO
-    // Cancelamento feito pelo Cliente. O clienteId deve ser o do usuário logado (pode ser pego do JWT depois).
+    // A identidade do cliente é obtida da autenticação, nunca da requisição.
     @PatchMapping("/{id}/cancelar/cliente")
     @PreAuthorize("hasRole('CLIENTE')")
-    public ResponseEntity<AgendamentoSaidaDto> cancelarPorCliente(
-            @PathVariable Long id,
-            @RequestParam Long clienteId) throws BadRequestException {
+    public ResponseEntity<AgendamentoSaidaDto> cancelarPorCliente(@PathVariable Long id) throws BadRequestException {
 
-        return ResponseEntity.ok(service.cancelarPorCliente(id, clienteId));
+        return ResponseEntity.ok(service.cancelarPorCliente(id));
     }
 
     // Cancelamento feito pelo Barbeiro.
     @PatchMapping("/{id}/cancelar/barbeiro")
     @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR')")
-    public ResponseEntity<AgendamentoSaidaDto> cancelarPorBarbeiro(
-            @PathVariable Long id,
-            @RequestParam Long barbeiroId) throws BadRequestException {
+    public ResponseEntity<AgendamentoSaidaDto> cancelarPorBarbeiro(@PathVariable Long id) throws BadRequestException {
 
-        return ResponseEntity.ok(service.cancelarPorBarbeiro(id, barbeiroId));
+        return ResponseEntity.ok(service.cancelarPorBarbeiro(id));
     }
 
 
@@ -151,11 +181,12 @@ public class AgendamentoController {
         return ResponseEntity.ok(service.iniciarAtendimento(id));
     }
 
-    // Marca o agendamento como CONCLUIDO.
-    @PatchMapping("/{id}/finalizar")
+    // Fecha manualmente a comanda do atendimento.
+    @PostMapping("/{id}/fechar-comanda")
     @PreAuthorize("hasAnyRole('BARBEIRO', 'ADMINISTRADOR')")
-    public ResponseEntity<AgendamentoSaidaDto> finalizarAtendimento(@PathVariable Long id) {
-        return ResponseEntity.ok(service.finalizarAtendimento(id));
+    public ResponseEntity<AgendamentoSaidaDto> fecharComanda(
+            @PathVariable Long id, @RequestBody @Valid FecharComandaDto dto) {
+        return ResponseEntity.ok(service.fecharComanda(id, dto));
     }
 
 

@@ -2,6 +2,10 @@ package com.zheiry.barbersystem.repositories;
 
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.enums.Status;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +15,10 @@ import java.util.Optional;
 @Repository
 public interface BarbeiroRepository extends JpaRepository<BarbeiroEntity, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BarbeiroEntity b where b.id = :id")
+    Optional<BarbeiroEntity> findByIdForUpdate(@Param("id") Long id);
+
     boolean existsByEmail(String email);
     boolean existsByTelefone(String telefone);
 
@@ -18,6 +26,7 @@ public interface BarbeiroRepository extends JpaRepository<BarbeiroEntity, Long> 
     boolean existsByTelefoneAndIdNot(String telefone, Long id);
 
     Optional<BarbeiroEntity> findByEmail(String email);
+    Optional<BarbeiroEntity> findByEmailIgnoreCase(String email);
 
     //Me ajuda nos métodos de listar barbeiros com status ativo e inaivo
     List<BarbeiroEntity> findByStatus(Status status);

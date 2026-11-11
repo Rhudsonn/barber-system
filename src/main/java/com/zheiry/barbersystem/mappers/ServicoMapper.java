@@ -6,6 +6,8 @@ import com.zheiry.barbersystem.dto.servico.ServicoSaidaDto;
 import com.zheiry.barbersystem.entities.ServicoEntity;
 
 import java.util.List;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class ServicoMapper {
 
@@ -26,6 +28,9 @@ public class ServicoMapper {
         entity.setCategoria(dto.categoria());
         entity.setPreco(dto.preco());
         entity.setDuracaoEmMinutos(dto.duracaoEmMinutos());
+        if (dto.porcentagemBarbearia() != null) {
+            entity.setPorcentagemBarbearia(dto.porcentagemBarbearia());
+        }
         return entity;
     }
 
@@ -43,7 +48,11 @@ public class ServicoMapper {
                 entity.getDescricao(),
                 entity.getCategoria(),
                 entity.getPreco(),
-                entity.getDuracaoEmMinutos()
+                entity.getDuracaoEmMinutos(),
+                porcentagemBarbearia(entity),
+                porcentagemProfissional(entity),
+                calcularParcela(entity, porcentagemBarbearia(entity)),
+                valorProfissional(entity)
         );
     }
 
@@ -84,9 +93,34 @@ public class ServicoMapper {
         if (dto.duracaoEmMinutos() != null){
             entity.setDuracaoEmMinutos(dto.duracaoEmMinutos());
         }
+        if (dto.porcentagemBarbearia() != null) {
+            entity.setPorcentagemBarbearia(dto.porcentagemBarbearia());
+        }
 
 
 
+    }
+
+    private static BigDecimal porcentagemBarbearia(ServicoEntity entity) {
+        return entity.getPorcentagemBarbearia() != null ? entity.getPorcentagemBarbearia() : new BigDecimal("50.00");
+    }
+
+    private static BigDecimal porcentagemProfissional(ServicoEntity entity) {
+        return new BigDecimal("100.00").subtract(porcentagemBarbearia(entity));
+    }
+
+    private static BigDecimal calcularParcela(ServicoEntity entity, BigDecimal porcentagem) {
+        BigDecimal preco = precoMonetario(entity);
+        return preco.multiply(porcentagem).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal valorProfissional(ServicoEntity entity) {
+        return precoMonetario(entity).subtract(calcularParcela(entity, porcentagemBarbearia(entity)));
+    }
+
+    private static BigDecimal precoMonetario(ServicoEntity entity) {
+        return entity.getPreco() == null ? BigDecimal.ZERO
+                : BigDecimal.valueOf(entity.getPreco()).setScale(2, RoundingMode.HALF_UP);
     }
 
 }

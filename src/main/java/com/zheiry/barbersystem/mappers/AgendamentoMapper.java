@@ -23,7 +23,8 @@ public class AgendamentoMapper {
 
                 // Cliente
                 entity.getCliente() != null ? entity.getCliente().getId() : null,
-                entity.getCliente() != null ? entity.getCliente().getNome() : null,
+                entity.getCliente() != null ? entity.getCliente().getNome() : entity.getClienteAvulsoNome(),
+                entity.getCliente() != null ? entity.getCliente().getTelefone() : entity.getClienteAvulsoTelefone(),
 
                 // Barbeiro
                 entity.getBarbeiro() != null ? entity.getBarbeiro().getId() : null,
@@ -38,6 +39,8 @@ public class AgendamentoMapper {
                 entity.getDataHoraInicio(),
                 entity.getDataHoraFim(),
                 entity.getStatusAgendamento(),
+                entity.getFormaPagamento(),
+                entity.getValorTotalComanda(),
                 entity.getObservacao(),
                 entity.getCriadoEm(),
                 entity.getAtualizadoEm()
@@ -70,6 +73,8 @@ public class AgendamentoMapper {
         AgendamentoEntity entity = new AgendamentoEntity();
 
         entity.setCliente(cliente);
+        entity.setClienteAvulsoNome(cliente == null ? dto.clienteAvulsoNome().trim() : null);
+        entity.setClienteAvulsoTelefone(cliente == null ? dto.clienteAvulsoTelefone() : null);
         entity.setBarbeiro(barbeiro);
         entity.setServico(servico);
         entity.setDataHoraInicio(dto.dataHoraInicio());

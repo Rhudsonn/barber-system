@@ -5,7 +5,8 @@ public record BarbeiroSaidaResumoDto(
         Long id,
         String nome,
         String telefone,
-        String especialidade
+        String especialidade,
+        String fotoUrl
 
 ) {
 }

@@ -31,6 +31,9 @@ public class BarbeiroEntity {
     @Column(nullable = false)
     private String especialidade;
 
+    @Column(name = "foto_url", length = 2048)
+    private String fotoUrl;
+
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -107,6 +110,10 @@ public class BarbeiroEntity {
     public String getEspecialidade() {
         return especialidade;
     }
+
+    public String getFotoUrl() { return fotoUrl; }
+
+    public void setFotoUrl(String fotoUrl) { this.fotoUrl = fotoUrl; }
 
     public void setEspecialidade(String especialidade) {
         this.especialidade = especialidade;

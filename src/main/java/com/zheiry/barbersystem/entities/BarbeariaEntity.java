@@ -25,8 +25,11 @@ public class BarbeariaEntity {
     @Column(nullable = false, length = 11, unique = true)
     private String telefone;
 
-    @Column(nullable = false, length = 11, unique = true)
+    @Column(length = 20, unique = true)
     private String whatsapp;
+
+    @Column(length = 2048)
+    private String instagram;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -46,6 +49,9 @@ public class BarbeariaEntity {
 
     @Column(nullable = false)
     private String descricao;
+
+    @Column(name = "logo_url", length = 2048)
+    private String logoUrl;
 
     @OneToMany(mappedBy = "barbearia", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<HorarioFuncionamentoEntity> horarios = new ArrayList<>();
@@ -118,6 +124,10 @@ public class BarbeariaEntity {
         this.whatsapp = whatsapp;
     }
 
+    public String getInstagram() { return instagram; }
+
+    public void setInstagram(String instagram) { this.instagram = instagram; }
+
     public String getEmail() {
         return email;
     }
@@ -161,6 +171,10 @@ public class BarbeariaEntity {
     public String getDescricao() {
         return descricao;
     }
+
+    public String getLogoUrl() { return logoUrl; }
+
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
 
     public void setDescricao(String descricao) {
         this.descricao = descricao;

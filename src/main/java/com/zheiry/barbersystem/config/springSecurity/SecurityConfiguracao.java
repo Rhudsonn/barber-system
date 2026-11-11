@@ -13,6 +13,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.List;
+import java.util.Arrays;
 
 
 @Configuration
@@ -21,6 +27,8 @@ public class SecurityConfiguracao {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+    @Value("${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
+    private String origensPermitidas;
 
     public SecurityConfiguracao(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
         this.userDetailsService = userDetailsService;
@@ -43,6 +51,7 @@ public class SecurityConfiguracao {
         http
                 // Sem cookie de sessão (stateless com JWT) => sem risco de CSRF.
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
 
                 // Nunca cria HttpSession. Cada requisição se autentica via o header Authorization.
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -50,9 +59,13 @@ public class SecurityConfiguracao {
                 .authorizeHttpRequests(auth -> auth
                         // Login é público.
                         .requestMatchers("/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login/esqueci-senha", "/login/redefinir-senha").permitAll()
+
+                        .requestMatchers(HttpMethod.PATCH, "/administradores/meu-perfil/**").hasRole("ADMINISTRADOR")
 
                         // Cadastro de cliente é público (tela de login).
                         .requestMatchers(HttpMethod.POST, "/clientes").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/barbearias/principal", "/servicos/lista/ativos", "/barbeiros/ativos").permitAll()
 
                         .requestMatchers(HttpMethod.GET,"/clientes/ativos").hasAnyRole("ADMINISTRADOR", "BARBEIRO") //.hasAnyRole - aceita mais de uma role_
                         .requestMatchers(HttpMethod.GET, "/clientes/inativos").hasRole("ADMINISTRADOR")
@@ -68,6 +81,7 @@ public class SecurityConfiguracao {
                         .requestMatchers(HttpMethod.GET, "/barbeiros/inativos").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/barbeiros/busca/nome").hasAnyRole("CLIENTE", "BARBEIRO", "ADMINISTRADOR")
                         .requestMatchers(HttpMethod.PATCH, "/barbeiros/meu-perfil/{id}").hasRole("BARBEIRO")
+                        .requestMatchers(HttpMethod.PATCH, "/barbeiros/senha/{id}").hasRole("BARBEIRO")
 
 
 
@@ -75,8 +89,7 @@ public class SecurityConfiguracao {
                         .requestMatchers(HttpMethod.POST, "/servicos/**")
                         .hasRole("ADMINISTRADOR")
                         // Lista de serviços ativos: qualquer usuário autenticado.
-                        .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos")
-                        .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/servicos/lista/ativos").permitAll()
 
 
                         // Qualquer outra rota precisa estar autenticada.
@@ -90,6 +103,20 @@ public class SecurityConfiguracao {
                 .userDetailsService(userDetailsService);
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuracao = new CorsConfiguration();
+        configuracao.setAllowedOriginPatterns(Arrays.stream(origensPermitidas.split(","))
+                .map(String::trim).filter(origem -> !origem.isEmpty()).toList());
+        configuracao.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
+        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        configuracao.setExposedHeaders(List.of("Authorization"));
+        configuracao.setAllowCredentials(false);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuracao);
+        return source;
     }
 }
 

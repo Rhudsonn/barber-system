@@ -2,20 +2,30 @@ package com.zheiry.barbersystem.services;
 
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoDto;
 import com.zheiry.barbersystem.dto.agendamento.AgendamentoSaidaDto;
+import com.zheiry.barbersystem.dto.agendamento.FecharComandaDto;
+import com.zheiry.barbersystem.dto.agendamento.HistoricoAgendamentoDto;
+import com.zheiry.barbersystem.config.springSecurity.UsuarioAutenticado;
 import com.zheiry.barbersystem.entities.*;
 import com.zheiry.barbersystem.enums.DiaSemana;
 import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.enums.StatusAgendamento;
+import com.zheiry.barbersystem.enums.TipoHistoricoAgendamento;
 import com.zheiry.barbersystem.exception.BadRequestException;
 import com.zheiry.barbersystem.exception.ResourceNotFoundException;
 import com.zheiry.barbersystem.mappers.AgendamentoMapper;
+import com.zheiry.barbersystem.mappers.HistoricoAgendamentoMapper;
 import com.zheiry.barbersystem.repositories.*;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.DayOfWeek;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -32,8 +42,19 @@ public class AgendamentoService {
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final BarbeariaRepository barbeariaRepository;
     private final BloqueioService bloqueioService;
+    private final ComissaoService comissaoService;
+    private final NotificacaoService notificacaoService;
+    private final Clock relogio;
+    private final HistoricoAgendamentoRepository historicoAgendamentoRepository;
 
-    public AgendamentoService(AgendamentoRepository agendamentoRepository, ClienteRepository clienteRepository, BarbeiroRepository barbeiroRepository, ServicoRepository servicoRepository, HorarioFuncionamentoRepository horarioFuncionamentoRepository, BarbeariaRepository barbeariaRepository, BloqueioService bloqueioService) {
+    public AgendamentoService(AgendamentoRepository agendamentoRepository, ClienteRepository clienteRepository, BarbeiroRepository barbeiroRepository, ServicoRepository servicoRepository, HorarioFuncionamentoRepository horarioFuncionamentoRepository, BarbeariaRepository barbeariaRepository, BloqueioService bloqueioService, ComissaoService comissaoService, NotificacaoService notificacaoService, Clock relogio) {
+        this(agendamentoRepository, clienteRepository, barbeiroRepository, servicoRepository,
+                horarioFuncionamentoRepository, barbeariaRepository, bloqueioService, comissaoService,
+                notificacaoService, relogio, null);
+    }
+
+    @Autowired
+    public AgendamentoService(AgendamentoRepository agendamentoRepository, ClienteRepository clienteRepository, BarbeiroRepository barbeiroRepository, ServicoRepository servicoRepository, HorarioFuncionamentoRepository horarioFuncionamentoRepository, BarbeariaRepository barbeariaRepository, BloqueioService bloqueioService, ComissaoService comissaoService, NotificacaoService notificacaoService, Clock relogio, HistoricoAgendamentoRepository historicoAgendamentoRepository) {
         this.agendamentoRepository = agendamentoRepository;
         this.clienteRepository = clienteRepository;
         this.barbeiroRepository = barbeiroRepository;
@@ -41,6 +62,10 @@ public class AgendamentoService {
         this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.barbeariaRepository = barbeariaRepository;
         this.bloqueioService = bloqueioService;
+        this.comissaoService = comissaoService;
+        this.notificacaoService = notificacaoService;
+        this.relogio = relogio;
+        this.historicoAgendamentoRepository = historicoAgendamentoRepository;
     }
 
     // Verifica se existe conflito de horário para o barbeiro.
@@ -53,12 +78,8 @@ public class AgendamentoService {
         }
 
         // Verifica conflito com outros agendamentos
-        LocalDate data = inicio.toLocalDate();
-        LocalDateTime inicioDoDia = data.atStartOfDay();
-        LocalDateTime fimDoDia = data.atTime(LocalTime.MAX);
-
         List<AgendamentoEntity> agendamentos = agendamentoRepository
-                .findByBarbeiroIdAndDataHoraInicioBetween(barbeiroId, inicioDoDia, fimDoDia);
+                .findByBarbeiroIdAndDataHoraInicioLessThanAndDataHoraFimGreaterThan(barbeiroId, fim, inicio);
 
         return agendamentos.stream()
                 .filter(a -> a.getStatusAgendamento() != StatusAgendamento.CANCELADO_CLIENTE
@@ -74,14 +95,43 @@ public class AgendamentoService {
     @Transactional
     public AgendamentoSaidaDto criar(AgendamentoDto dto) throws BadRequestException {
 
-        ClienteEntity cliente = clienteRepository.findById(dto.clienteId())
+        Authentication authentication = autenticacaoAtual();
+        Long usuarioId = idAutenticado(authentication);
+        if (temRole(authentication, "CLIENTE") && (dto.clienteId() == null || !usuarioId.equals(dto.clienteId()))) {
+            throw new AccessDeniedException("Clientes só podem criar agendamentos para si mesmos.");
+        }
+        if (temRole(authentication, "BARBEIRO") && !usuarioId.equals(dto.barbeiroId())) {
+            throw new AccessDeniedException("Barbeiros só podem criar agendamentos para sua própria agenda.");
+        }
+        if (!temRole(authentication, "CLIENTE") && !temRole(authentication, "BARBEIRO")
+                && !temRole(authentication, "ADMINISTRADOR")) {
+            throw new AccessDeniedException("Perfil sem permissão para criar agendamentos.");
+        }
+
+        boolean clienteAvulso = dto.clienteId() == null;
+        if (clienteAvulso && (temRole(authentication, "CLIENTE") || dto.clienteAvulsoNome() == null || dto.clienteAvulsoNome().isBlank())) {
+            throw new BadRequestException("Informe o nome do cliente ou selecione um cliente cadastrado.");
+        }
+        if (clienteAvulso && dto.clienteAvulsoNome().trim().length() > 255) {
+            throw new BadRequestException("O nome do cliente não pode ultrapassar 255 caracteres.");
+        }
+        if (clienteAvulso && dto.clienteAvulsoTelefone() != null && dto.clienteAvulsoTelefone().length() > 255) {
+            throw new BadRequestException("O telefone do cliente não pode ultrapassar 255 caracteres.");
+        }
+        if (!clienteAvulso && dto.clienteAvulsoNome() != null && !dto.clienteAvulsoNome().isBlank()) {
+            throw new BadRequestException("Selecione um cliente cadastrado ou informe os dados do cliente de porta.");
+        }
+
+        ClienteEntity cliente = clienteAvulso ? null : clienteRepository.findById(dto.clienteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
 
-        if (cliente.getStatus() != Status.ATIVO) {
+        if (cliente != null && cliente.getStatus() != Status.ATIVO) {
             throw new BadRequestException("O cliente está inativo e não pode realizar agendamentos.");
         }
 
-        BarbeiroEntity barbeiro = barbeiroRepository.findById(dto.barbeiroId())
+        // Todas as criações e reagendamentos bloqueiam a mesma linha do barbeiro antes
+        // de verificar conflitos, serializando reservas concorrentes para essa agenda.
+        BarbeiroEntity barbeiro = barbeiroRepository.findByIdForUpdate(dto.barbeiroId())
                 .orElseThrow(() -> new ResourceNotFoundException("Barbeiro não encontrado."));
 
         if (barbeiro.getStatus() != Status.ATIVO) {
@@ -96,7 +146,12 @@ public class AgendamentoService {
         }
 
         LocalDateTime dataHoraInicio = dto.dataHoraInicio();
+        if (dataHoraInicio == null || !dataHoraInicio.isAfter(LocalDateTime.now(relogio))) {
+            throw new BadRequestException("O agendamento deve começar no futuro.");
+        }
         LocalDateTime dataHoraFim = dataHoraInicio.plusMinutes(servico.getDuracaoEmMinutos());
+
+        validarHorarioFuncionamento(dataHoraInicio, dataHoraFim);
 
         // Verifica conflito de horário
         if (existeConflito(barbeiro.getId(), dataHoraInicio, dataHoraFim, null)) {
@@ -105,6 +160,7 @@ public class AgendamentoService {
 
         AgendamentoEntity entity = AgendamentoMapper.toEntity(dto, cliente, barbeiro, servico);
         AgendamentoEntity salvo = agendamentoRepository.save(entity);
+        notificacaoService.agendamentoCriado(salvo);
 
         return AgendamentoMapper.toSaidaDto(salvo);
     }
@@ -114,10 +170,65 @@ public class AgendamentoService {
     public AgendamentoSaidaDto buscarPorId(Long id) {
         AgendamentoEntity entity = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
+        validarAcessoAoAgendamento(entity);
         return AgendamentoMapper.toSaidaDto(entity);
     }
 
+    public List<HistoricoAgendamentoDto> listarHistorico(Long agendamentoId) {
+        AgendamentoEntity agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
+        validarAcessoAoAgendamento(agendamento);
+        return HistoricoAgendamentoMapper.paraSaidaDtoList(
+                historicoAgendamentoRepository.findByAgendamentoIdOrderByRegistradoEmAsc(agendamentoId));
+    }
+
+    private void registrarHistorico(AgendamentoEntity agendamento, TipoHistoricoAgendamento tipoEvento,
+                                    LocalDateTime dataHoraAnterior, LocalDateTime dataHoraNova,
+                                    ServicoEntity servicoAdicional) {
+        if (historicoAgendamentoRepository == null) return;
+        Authentication authentication = autenticacaoAtual();
+        UsuarioAutenticado usuario = authentication.getPrincipal() instanceof UsuarioAutenticado autenticado
+                ? autenticado : null;
+
+        HistoricoAgendamentoEntity historico = new HistoricoAgendamentoEntity();
+        historico.setAgendamentoId(agendamento.getId());
+        historico.setTipoEvento(tipoEvento);
+        historico.setRegistradoEm(LocalDateTime.now(relogio));
+        historico.setUsuarioId(usuario != null ? usuario.getId() : null);
+        historico.setUsuarioEmail(authentication.getName());
+        historico.setPerfilUsuario(authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(role -> role.startsWith("ROLE_"))
+                .map(role -> role.substring(5))
+                .findFirst().orElse(null));
+        historico.setClienteId(agendamento.getCliente() != null ? agendamento.getCliente().getId() : null);
+        historico.setClienteNome(agendamento.getCliente() != null
+                ? agendamento.getCliente().getNome() : agendamento.getClienteAvulsoNome());
+        historico.setBarbeiroId(agendamento.getBarbeiro().getId());
+        historico.setBarbeiroNome(agendamento.getBarbeiro().getNome());
+        historico.setServicoId(agendamento.getServico().getId());
+        historico.setServicoNome(agendamento.getServico().getNome());
+        historico.setValorServico(java.math.BigDecimal.valueOf(agendamento.getServico().getPreco())
+                .setScale(2, java.math.RoundingMode.HALF_UP));
+        if (servicoAdicional != null) {
+            historico.setServicoAdicionalId(servicoAdicional.getId());
+            historico.setServicoAdicionalNome(servicoAdicional.getNome());
+            historico.setValorServicoAdicional(java.math.BigDecimal.valueOf(servicoAdicional.getPreco())
+                    .setScale(2, java.math.RoundingMode.HALF_UP));
+        }
+        historico.setDataHoraAnterior(dataHoraAnterior);
+        historico.setDataHoraNova(dataHoraNova != null ? dataHoraNova : agendamento.getDataHoraInicio());
+        historico.setFormaPagamento(agendamento.getFormaPagamento());
+        historico.setValorTotalComanda(agendamento.getValorTotalComanda());
+        historicoAgendamentoRepository.save(historico);
+    }
+
     public Page<AgendamentoSaidaDto> listarPorCliente(Long clienteId, Pageable pageable) {
+        Authentication authentication = autenticacaoAtual();
+        if (!temRole(authentication, "ADMINISTRADOR")
+                && (!temRole(authentication, "CLIENTE") || !idAutenticado(authentication).equals(clienteId))) {
+            throw new AccessDeniedException("Você só pode consultar seus próprios agendamentos.");
+        }
         if (!clienteRepository.existsById(clienteId)) {
             throw new ResourceNotFoundException("Cliente não encontrado.");
         }
@@ -125,7 +236,27 @@ public class AgendamentoService {
                 .map(AgendamentoMapper::toSaidaDto);
     }
 
+    public List<AgendamentoSaidaDto> listarPorClienteEPeriodo(Long clienteId, LocalDate inicio, LocalDate fim) {
+        Authentication authentication = autenticacaoAtual();
+        if (!temRole(authentication, "ADMINISTRADOR")
+                && (!temRole(authentication, "CLIENTE") || !idAutenticado(authentication).equals(clienteId))) {
+            throw new AccessDeniedException("Você só pode consultar seus próprios agendamentos.");
+        }
+        validarPeriodo(inicio, fim);
+        if (!clienteRepository.existsById(clienteId)) {
+            throw new ResourceNotFoundException("Cliente não encontrado.");
+        }
+        return AgendamentoMapper.toSaidaDtoList(agendamentoRepository
+                .findByClienteIdAndDataHoraInicioGreaterThanEqualAndDataHoraInicioLessThanOrderByDataHoraInicioAsc(
+                        clienteId, inicio.atStartOfDay(), fim.plusDays(1).atStartOfDay()));
+    }
+
     public Page<AgendamentoSaidaDto> listarPorBarbeiro(Long barbeiroId, Pageable pageable) {
+        Authentication authentication = autenticacaoAtual();
+        if (!temRole(authentication, "ADMINISTRADOR")
+                && (!temRole(authentication, "BARBEIRO") || !idAutenticado(authentication).equals(barbeiroId))) {
+            throw new AccessDeniedException("Você só pode consultar a sua própria agenda.");
+        }
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado.");
         }
@@ -134,6 +265,11 @@ public class AgendamentoService {
     }
 
     public List<AgendamentoSaidaDto> listarPorBarbeiroEData(Long barbeiroId, LocalDate data) {
+        Authentication authentication = autenticacaoAtual();
+        if (!temRole(authentication, "ADMINISTRADOR")
+                && (!temRole(authentication, "BARBEIRO") || !idAutenticado(authentication).equals(barbeiroId))) {
+            throw new AccessDeniedException("Você só pode consultar a sua própria agenda.");
+        }
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado.");
         }
@@ -147,7 +283,44 @@ public class AgendamentoService {
         return AgendamentoMapper.toSaidaDtoList(lista);
     }
 
+    public List<AgendamentoSaidaDto> listarPorBarbeiroEPeriodo(Long barbeiroId, LocalDate inicio, LocalDate fim) {
+        Authentication authentication = autenticacaoAtual();
+        if (!temRole(authentication, "ADMINISTRADOR")
+                && (!temRole(authentication, "BARBEIRO") || !idAutenticado(authentication).equals(barbeiroId))) {
+            throw new AccessDeniedException("Você só pode consultar a sua própria agenda.");
+        }
+        validarPeriodo(inicio, fim);
+        if (!barbeiroRepository.existsById(barbeiroId)) {
+            throw new ResourceNotFoundException("Barbeiro não encontrado.");
+        }
+        return AgendamentoMapper.toSaidaDtoList(agendamentoRepository
+                .findByBarbeiroIdAndDataHoraInicioGreaterThanEqualAndDataHoraInicioLessThanOrderByDataHoraInicioAsc(
+                        barbeiroId, inicio.atStartOfDay(), fim.plusDays(1).atStartOfDay()));
+    }
+
+    public List<AgendamentoSaidaDto> listarTodosNoPeriodo(LocalDate inicio, LocalDate fim) {
+        if (!temRole(autenticacaoAtual(), "ADMINISTRADOR")) {
+            throw new AccessDeniedException("Somente administradores podem consultar todos os agendamentos.");
+        }
+        validarPeriodo(inicio, fim);
+        return AgendamentoMapper.toSaidaDtoList(agendamentoRepository
+                .findByDataHoraInicioGreaterThanEqualAndDataHoraInicioLessThanOrderByDataHoraInicioAsc(
+                        inicio.atStartOfDay(), fim.plusDays(1).atStartOfDay()));
+    }
+
+    private void validarPeriodo(LocalDate inicio, LocalDate fim) {
+        if (inicio == null || fim == null || fim.isBefore(inicio)) {
+            throw new BadRequestException("Informe um período válido, com data final igual ou posterior à inicial.");
+        }
+        if (fim.isAfter(inicio.plusMonths(12))) {
+            throw new BadRequestException("O período consultado não pode ultrapassar 12 meses.");
+        }
+    }
+
     public Page<AgendamentoSaidaDto> listarTodos(Pageable pageable) {
+        if (!temRole(autenticacaoAtual(), "ADMINISTRADOR")) {
+            throw new AccessDeniedException("Somente administradores podem consultar todos os agendamentos.");
+        }
         return agendamentoRepository.findAll(pageable)
                 .map(AgendamentoMapper::toSaidaDto);
     }
@@ -156,6 +329,10 @@ public class AgendamentoService {
     // Retorna os horários livres de um barbeiro em uma data,
 // considerando horário de funcionamento da barbearia + duração do serviço + bloqueios.
     public List<LocalTime> listarHorariosDisponiveis(Long barbeiroId, LocalDate data, int duracaoMinutos) {
+
+        if (duracaoMinutos <= 0) {
+            throw new BadRequestException("A duração deve ser maior que zero.");
+        }
 
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado.");
@@ -199,10 +376,10 @@ public class AgendamentoService {
         LocalDateTime fimDoDia = data.atTime(LocalTime.MAX);
 
         List<AgendamentoEntity> agendamentosDoDia = agendamentoRepository
-                .findByBarbeiroIdAndDataHoraInicioBetweenAndStatusAgendamentoNotIn(
+                .findByBarbeiroIdAndDataHoraInicioLessThanAndDataHoraFimGreaterThanAndStatusAgendamentoNotIn(
                         barbeiroId,
-                        inicioDoDia,
                         fimDoDia,
+                        inicioDoDia,
                         List.of(StatusAgendamento.CANCELADO_CLIENTE,
                                 StatusAgendamento.CANCELADO_BARBEIRO)
                 );
@@ -246,12 +423,29 @@ public class AgendamentoService {
     // Atualizar status
     @Transactional
     public AgendamentoSaidaDto atualizarStatus(Long id, StatusAgendamento novoStatus) {
-        AgendamentoEntity entity = agendamentoRepository.findById(id)
+        AgendamentoEntity entity = agendamentoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
+
+        if (novoStatus == StatusAgendamento.CONCLUIDO) {
+            throw new BadRequestException("Para concluir o atendimento, feche a comanda com a forma de pagamento.");
+        }
+        validarResponsavelOuAdministrador(entity);
+        validarTransicaoStatus(entity, novoStatus);
 
         entity.setStatusAgendamento(novoStatus);
 
         AgendamentoEntity atualizado = agendamentoRepository.save(entity);
+
+        if (novoStatus == StatusAgendamento.NAO_COMPARECEU) {
+            comissaoService.removerConclusao(atualizado.getId());
+            registrarHistorico(atualizado, TipoHistoricoAgendamento.NAO_COMPARECEU, null, null, null);
+        } else if (novoStatus == StatusAgendamento.CANCELADO_BARBEIRO) {
+            registrarHistorico(atualizado, TipoHistoricoAgendamento.CANCELADO, null, null, null);
+        }
+
+        if (novoStatus == StatusAgendamento.CONFIRMADO) {
+            notificacaoService.agendamentoConfirmado(atualizado);
+        }
 
         return AgendamentoMapper.toSaidaDto(atualizado);
     }
@@ -259,26 +453,26 @@ public class AgendamentoService {
 
     //Cancelamento feito pelo Cliente. Só permite cancelar até 2 horas antes do horário.
     @Transactional
-    public AgendamentoSaidaDto cancelarPorCliente(Long id, Long clienteId) throws BadRequestException {
+    public AgendamentoSaidaDto cancelarPorCliente(Long id) throws BadRequestException {
         AgendamentoEntity entity = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
 
-        if (!entity.getCliente().getId().equals(clienteId)) {
-            throw new BadRequestException("Você só pode cancelar os seus próprios agendamentos.");
-        }
+        validarDono(entity, "CLIENTE");
 
         if (entity.getStatusAgendamento() != StatusAgendamento.AGENDADO
                 && entity.getStatusAgendamento() != StatusAgendamento.CONFIRMADO) {
             throw new BadRequestException("Este agendamento não pode mais ser cancelado.");
         }
 
-        LocalDateTime limite = LocalDateTime.now().plusHours(2);
+        LocalDateTime limite = LocalDateTime.now(relogio).plusHours(2);
         if (entity.getDataHoraInicio().isBefore(limite)) {
             throw new BadRequestException("Não é possível cancelar com menos de 2 horas de antecedência.");
         }
 
         entity.setStatusAgendamento(StatusAgendamento.CANCELADO_CLIENTE);
         AgendamentoEntity atualizado = agendamentoRepository.save(entity);
+        registrarHistorico(atualizado, TipoHistoricoAgendamento.CANCELADO, null, null, null);
+        notificacaoService.agendamentoCancelado(atualizado);
 
         return AgendamentoMapper.toSaidaDto(atualizado);
     }
@@ -286,22 +480,22 @@ public class AgendamentoService {
 
     // Cancelamento feito pelo Barbeiro.
     @Transactional
-    public AgendamentoSaidaDto cancelarPorBarbeiro(Long id, Long barbeiroId) throws BadRequestException {
+    public AgendamentoSaidaDto cancelarPorBarbeiro(Long id) throws BadRequestException {
         AgendamentoEntity entity = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
 
-        if (!entity.getBarbeiro().getId().equals(barbeiroId)) {
-            throw new BadRequestException("Você só pode cancelar agendamentos da sua agenda.");
-        }
+        validarResponsavelOuAdministrador(entity);
 
-        if (entity.getStatusAgendamento() == StatusAgendamento.CONCLUIDO
-                || entity.getStatusAgendamento() == StatusAgendamento.CANCELADO_CLIENTE
-                || entity.getStatusAgendamento() == StatusAgendamento.CANCELADO_BARBEIRO) {
+        if (entity.getStatusAgendamento() != StatusAgendamento.AGENDADO
+                && entity.getStatusAgendamento() != StatusAgendamento.CONFIRMADO
+                && entity.getStatusAgendamento() != StatusAgendamento.EM_ANDAMENTO) {
             throw new BadRequestException("Este agendamento não pode mais ser cancelado.");
         }
 
         entity.setStatusAgendamento(StatusAgendamento.CANCELADO_BARBEIRO);
         AgendamentoEntity atualizado = agendamentoRepository.save(entity);
+        registrarHistorico(atualizado, TipoHistoricoAgendamento.CANCELADO, null, null, null);
+        notificacaoService.agendamentoCancelado(atualizado);
 
         return AgendamentoMapper.toSaidaDto(atualizado);
     }
@@ -313,22 +507,36 @@ public class AgendamentoService {
         AgendamentoEntity entity = agendamentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
 
+        validarDonoOuResponsavelOuAdministrador(entity);
+
+        barbeiroRepository.findByIdForUpdate(entity.getBarbeiro().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Barbeiro não encontrado."));
+
         if (entity.getStatusAgendamento() != StatusAgendamento.AGENDADO
                 && entity.getStatusAgendamento() != StatusAgendamento.CONFIRMADO) {
             throw new BadRequestException("Só é possível reagendar agendamentos com status AGENDADO ou CONFIRMADO.");
         }
 
         int duracao = entity.getServico().getDuracaoEmMinutos();
+        if (novaDataHoraInicio == null || !novaDataHoraInicio.isAfter(LocalDateTime.now(relogio))) {
+            throw new BadRequestException("O novo horário deve começar no futuro.");
+        }
         LocalDateTime novaDataHoraFim = novaDataHoraInicio.plusMinutes(duracao);
+
+        validarHorarioFuncionamento(novaDataHoraInicio, novaDataHoraFim);
 
         if (existeConflito(entity.getBarbeiro().getId(), novaDataHoraInicio, novaDataHoraFim, entity.getId())) {
             throw new BadRequestException("Já existe um agendamento ou bloqueio neste novo horário.");
         }
 
+        LocalDateTime dataHoraAnterior = entity.getDataHoraInicio();
         entity.setDataHoraInicio(novaDataHoraInicio);
         entity.setDataHoraFim(novaDataHoraFim);
 
         AgendamentoEntity atualizado = agendamentoRepository.save(entity);
+        registrarHistorico(atualizado, TipoHistoricoAgendamento.REAGENDADO,
+                dataHoraAnterior, novaDataHoraInicio, null);
+        notificacaoService.agendamentoReagendado(atualizado);
         return AgendamentoMapper.toSaidaDto(atualizado);
     }
 
@@ -339,13 +547,147 @@ public class AgendamentoService {
     }
 
     @Transactional
-    public AgendamentoSaidaDto finalizarAtendimento(Long id) {
-        return atualizarStatus(id, StatusAgendamento.CONCLUIDO);
+    public AgendamentoSaidaDto fecharComanda(Long id, FecharComandaDto dto) {
+        AgendamentoEntity agendamento = agendamentoRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Agendamento não encontrado."));
+        validarResponsavelOuAdministrador(agendamento);
+        if (agendamento.getStatusAgendamento() != StatusAgendamento.AGENDADO
+                && agendamento.getStatusAgendamento() != StatusAgendamento.CONFIRMADO
+                && agendamento.getStatusAgendamento() != StatusAgendamento.EM_ANDAMENTO) {
+            throw new BadRequestException("A comanda só pode ser fechada para um atendimento ativo.");
+        }
+        if (dto == null || dto.formaPagamento() == null) {
+            throw new BadRequestException("A forma de pagamento é obrigatória.");
+        }
+
+        ServicoEntity servicoAdicional = null;
+        if (dto.servicoAdicionalId() != null) {
+            if (dto.servicoAdicionalId().equals(agendamento.getServico().getId())) {
+                throw new BadRequestException("O serviço adicional já está na comanda.");
+            }
+            servicoAdicional = servicoRepository.findById(dto.servicoAdicionalId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Serviço adicional não encontrado."));
+            if (servicoAdicional.getStatus() != Status.ATIVO) {
+                throw new BadRequestException("O serviço adicional está inativo.");
+            }
+        }
+
+        java.math.BigDecimal total = java.math.BigDecimal.valueOf(agendamento.getServico().getPreco())
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        if (servicoAdicional != null) {
+            total = total.add(java.math.BigDecimal.valueOf(servicoAdicional.getPreco())
+                    .setScale(2, java.math.RoundingMode.HALF_UP));
+        }
+        agendamento.setFormaPagamento(dto.formaPagamento());
+        agendamento.setValorTotalComanda(total);
+        agendamento.setStatusAgendamento(StatusAgendamento.CONCLUIDO);
+        AgendamentoEntity atualizado = agendamentoRepository.save(agendamento);
+        comissaoService.registrarConclusao(atualizado, servicoAdicional);
+        registrarHistorico(atualizado, TipoHistoricoAgendamento.CONCLUIDO, null, null, servicoAdicional);
+        return AgendamentoMapper.toSaidaDto(atualizado);
     }
 
     @Transactional
     public AgendamentoSaidaDto marcarNaoCompareceu(Long id) {
         return atualizarStatus(id, StatusAgendamento.NAO_COMPARECEU);
+    }
+
+    private void validarTransicaoStatus(AgendamentoEntity entity, StatusAgendamento novo) {
+        if (novo == null) {
+            throw new BadRequestException("O novo status é obrigatório.");
+        }
+
+        StatusAgendamento atual = entity.getStatusAgendamento();
+        boolean expirado = !entity.getDataHoraFim().isAfter(LocalDateTime.now(relogio));
+        boolean permitido = switch (atual) {
+            case AGENDADO -> novo == StatusAgendamento.CONFIRMADO
+                    || novo == StatusAgendamento.CANCELADO_BARBEIRO
+                    || (expirado && novo == StatusAgendamento.NAO_COMPARECEU);
+            case CONFIRMADO -> novo == StatusAgendamento.CANCELADO_BARBEIRO
+                    || (expirado && novo == StatusAgendamento.NAO_COMPARECEU);
+            case EM_ANDAMENTO -> novo == StatusAgendamento.CANCELADO_BARBEIRO
+                    || (expirado && novo == StatusAgendamento.NAO_COMPARECEU);
+            case CONCLUIDO, CANCELADO_CLIENTE, CANCELADO_BARBEIRO, NAO_COMPARECEU -> false;
+        };
+
+        if (!permitido) {
+            throw new BadRequestException("Transição de status inválida: " + atual + " para " + novo + ".");
+        }
+    }
+
+    private void validarResponsavelOuAdministrador(AgendamentoEntity entity) {
+        Authentication authentication = autenticacaoAtual();
+        if (temRole(authentication, "ADMINISTRADOR")) {
+            return;
+        }
+        if (!temRole(authentication, "BARBEIRO") || !idAutenticado(authentication).equals(entity.getBarbeiro().getId())) {
+            throw new AccessDeniedException("Você só pode atuar nos agendamentos da sua agenda.");
+        }
+    }
+
+    private void validarDono(AgendamentoEntity entity, String roleEsperada) {
+        Authentication authentication = autenticacaoAtual();
+        if (entity.getCliente() == null || !temRole(authentication, roleEsperada) || !idAutenticado(authentication).equals(entity.getCliente().getId())) {
+            throw new AccessDeniedException("Você só pode atuar nos seus próprios agendamentos.");
+        }
+    }
+
+    private void validarDonoOuResponsavelOuAdministrador(AgendamentoEntity entity) {
+        Authentication authentication = autenticacaoAtual();
+        if (temRole(authentication, "ADMINISTRADOR")) {
+            return;
+        }
+        Long id = idAutenticado(authentication);
+        if (temRole(authentication, "CLIENTE") && entity.getCliente() != null && id.equals(entity.getCliente().getId())) {
+            return;
+        }
+        if (temRole(authentication, "BARBEIRO") && id.equals(entity.getBarbeiro().getId())) {
+            return;
+        }
+        throw new AccessDeniedException("Você não pode reagendar este agendamento.");
+    }
+
+    private void validarAcessoAoAgendamento(AgendamentoEntity entity) {
+        Authentication authentication = autenticacaoAtual();
+        if (temRole(authentication, "ADMINISTRADOR")) return;
+        Long id = idAutenticado(authentication);
+        if (temRole(authentication, "CLIENTE") && entity.getCliente() != null && id.equals(entity.getCliente().getId())) return;
+        if (temRole(authentication, "BARBEIRO") && id.equals(entity.getBarbeiro().getId())) return;
+        throw new AccessDeniedException("Você não pode consultar este agendamento.");
+    }
+
+    private void validarHorarioFuncionamento(LocalDateTime inicio, LocalDateTime fim) {
+        var barbearia = barbeariaRepository.findFirstByOrderByIdAsc()
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma barbearia cadastrada."));
+        DiaSemana diaSemana = converterParaDiaSemana(inicio.getDayOfWeek());
+        boolean dentroDoHorario = horarioFuncionamentoRepository
+                .findByBarbeariaIdAndDiaSemana(barbearia.getId(), diaSemana).stream()
+                .anyMatch(faixa -> !inicio.toLocalTime().isBefore(faixa.getHorarioInicio())
+                        && !fim.toLocalTime().isAfter(faixa.getHorarioFim())
+                        && inicio.toLocalDate().equals(fim.toLocalDate()));
+        if (!dentroDoHorario) {
+            throw new BadRequestException("O horário solicitado está fora do funcionamento da barbearia.");
+        }
+    }
+
+    private Authentication autenticacaoAtual() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new AccessDeniedException("Autenticação obrigatória.");
+        }
+        return authentication;
+    }
+
+    private boolean temRole(Authentication authentication, String role) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + role));
+    }
+
+    private Long idAutenticado(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof UsuarioAutenticado usuario) {
+            return usuario.getId();
+        }
+        throw new AccessDeniedException("Não foi possível identificar o usuário autenticado.");
     }
 
 

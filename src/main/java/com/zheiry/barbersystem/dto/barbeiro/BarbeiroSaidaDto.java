@@ -17,6 +17,7 @@ public record BarbeiroSaidaDto(
         String telefone,
         String especialidade,
         String email,
+        String fotoUrl,
 
         Status status
 ) {

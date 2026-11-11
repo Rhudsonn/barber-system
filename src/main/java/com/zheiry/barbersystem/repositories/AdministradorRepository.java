@@ -11,4 +11,9 @@ public interface AdministradorRepository extends JpaRepository<AdministradorEnti
 
 
     Optional<AdministradorEntity> findByEmail(String email);
+    Optional<AdministradorEntity> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailAndIdNot(String email, Long id);
+
+    boolean existsByTelefoneAndIdNot(String telefone, Long id);
 }

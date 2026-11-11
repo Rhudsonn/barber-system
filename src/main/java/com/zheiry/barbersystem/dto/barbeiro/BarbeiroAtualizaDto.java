@@ -23,6 +23,9 @@ public record BarbeiroAtualizaDto(
         String especialidade,
 
         @Email(message = "Formato de e-mail inválido")
-        String email
+        String email,
+
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres.")
+        String fotoUrl
 ) {
 }

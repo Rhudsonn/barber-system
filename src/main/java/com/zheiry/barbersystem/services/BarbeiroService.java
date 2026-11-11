@@ -138,66 +138,6 @@ public class BarbeiroService {
         return BarbeiroMapper.toSaidaDto(barbeiro);
     }
 
-//    @Transactional
-//    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(BarbeiroAtualizaDto dto) {
-//
-//        String emailLogado = SecurityContextHolder.getContext()
-//                .getAuthentication()
-//                .getName();
-//
-//        BarbeiroEntity barbeiro = repository.findByEmail(emailLogado)
-//                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
-//
-//        // Validações de e-mail e telefone (iguais às suas)
-//        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), barbeiro.getId())) {
-//            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
-//        }
-//
-//        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), barbeiro.getId())) {
-//            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
-//        }
-//
-//        BarbeiroMapper.atualizarEntity(dto, barbeiro);
-//        repository.save(barbeiro);
-//
-//        return BarbeiroMapper.toSaidaDto(barbeiro);
-//    }
-
-
-//    @Transactional
-//    public BarbeiroSaidaDto atualizarInformacoesBarbeiro(Long id, BarbeiroAtualizaDto dto) {
-//
-//        // Busca o barbeiro. Se não existir, lança 404.
-//        BarbeiroEntity barbeiro = repository.findById(id)
-//                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado!"));
-//
-//        // Pega o e-mail do usuário autenticado (vem do JWT)
-//        String emailLogado = SecurityContextHolder.getContext()
-//                .getAuthentication()
-//                .getName();
-//
-//        // Só permite se o e-mail logado for o mesmo do barbeiro
-//        if (!barbeiro.getEmail().equals(emailLogado)) {
-//            throw new AccessDeniedException("Você só pode atualizar as suas próprias informações!");
-//        }
-//
-//        // Valida se o novo e-mail já está em uso por outro usuário
-//        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
-//            throw new DuplicateResourceException("O e-mail informado já está sendo utilizado por outro Usuário.");
-//        }
-//
-//        // Valida se o novo telefone já está em uso por outro usuário
-//        if (dto.telefone() != null && repository.existsByTelefoneAndIdNot(dto.telefone(), id)) {
-//            throw new DuplicateResourceException("O telefone informado já está sendo utilizado por outro Usuário.");
-//        }
-//
-//        // Aplica apenas os campos que vieram preenchidos no DTO
-//        BarbeiroMapper.atualizarEntity(dto, barbeiro);
-//
-//        // Salva e retorna o DTO de saída
-//        repository.save(barbeiro);
-//        return BarbeiroMapper.toSaidaDto(barbeiro);
-//    }
 
 
     @Transactional
@@ -213,9 +153,6 @@ public class BarbeiroService {
 
         // Só permite se o e-mail logado for o mesmo do barbeiro
         if (!Objects.equals(barbeiro.getEmail(), emailLogado)) {
-            throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
-        }
-        if (!barbeiro.getEmail().equals(emailLogado)) {
             throw new AccessDeniedException("Você só pode alterar a sua própria senha!");
         }
 

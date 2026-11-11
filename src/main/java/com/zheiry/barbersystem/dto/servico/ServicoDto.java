@@ -2,6 +2,7 @@ package com.zheiry.barbersystem.dto.servico;
 
 import com.zheiry.barbersystem.enums.Categoria;
 import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
 
 public record ServicoDto(
 
@@ -19,7 +20,12 @@ public record ServicoDto(
         Double preco,
 
         @Min(value = 1, message = "A duração deve ser de pelo menos 1 minuto.")
-        Integer duracaoEmMinutos
+        Integer duracaoEmMinutos,
+
+        @DecimalMin(value = "0.00", message = "A porcentagem da barbearia não pode ser negativa.")
+        @DecimalMax(value = "100.00", message = "A porcentagem da barbearia não pode ultrapassar 100%.")
+        @Digits(integer = 3, fraction = 2, message = "A porcentagem deve ter no máximo duas casas decimais.")
+        BigDecimal porcentagemBarbearia
 
 ) {
 }

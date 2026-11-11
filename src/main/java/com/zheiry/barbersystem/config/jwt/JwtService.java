@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.PostConstruct;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,16 @@ public class JwtService {
 
     @Value("${jwt.expiration}")
     private long expirationMs;
+
+    @PostConstruct
+    void validarConfiguracao() {
+        if (secretKey == null || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET deve conter pelo menos 32 bytes.");
+        }
+        if (expirationMs <= 0) {
+            throw new IllegalStateException("JWT_EXPIRATION deve ser maior que zero.");
+        }
+    }
 
     public String gerarToken(UserDetails userDetails) {
         List<String> roles = userDetails.getAuthorities().stream()
@@ -50,7 +61,9 @@ public class JwtService {
 
     public boolean tokenValido(String token, UserDetails userDetails) {
         String username = extrairUsername(token);
-        return username.equals(userDetails.getUsername()) && !tokenExpirado(token);
+        return userDetails.isEnabled()
+                && username.equals(userDetails.getUsername())
+                && !tokenExpirado(token);
     }
 
     private boolean tokenExpirado(String token) {

@@ -25,6 +25,9 @@ public class BarbeariaService {
 
     @Transactional
     public BarbeariaSaidaDto cadastrar(BarbeariaDto dto) {
+        if (repository.count() > 0) {
+            throw new DuplicateResourceException("O sistema permite cadastrar apenas uma barbearia.");
+        }
         if (repository.existsByCnpj(dto.cnpj())) {
             throw new DuplicateResourceException("CNPJ já está cadastrado.");
         }
@@ -63,7 +66,7 @@ public class BarbeariaService {
         BarbeariaEntity entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Barbearia não encontrada."));
 
-        if (repository.existsByEmailAndIdNot(dto.email(), id)) {
+        if (dto.email() != null && repository.existsByEmailAndIdNot(dto.email(), id)) {
             throw new DuplicateResourceException("E-mail já está em uso por outra barbearia.");
         }
 

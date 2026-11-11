@@ -1,8 +1,10 @@
 package com.zheiry.barbersystem.entities;
 
 import com.zheiry.barbersystem.enums.StatusAgendamento;
+import com.zheiry.barbersystem.enums.FormaPagamento;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,9 +20,15 @@ public class AgendamentoEntity {
     private Long id;
 
     // Relacionamentos (ManyToOne)
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id")
     private ClienteEntity cliente;
+
+    @Column(name = "cliente_avulso_nome")
+    private String clienteAvulsoNome;
+
+    @Column(name = "cliente_avulso_telefone", length = 255)
+    private String clienteAvulsoTelefone;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barbeiro_id", nullable = false)
@@ -40,6 +48,13 @@ public class AgendamentoEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusAgendamento statusAgendamento;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", length = 20)
+    private FormaPagamento formaPagamento;
+
+    @Column(name = "valor_total_comanda", precision = 12, scale = 2)
+    private BigDecimal valorTotalComanda;
 
     @Column(length = 500)
     private String observacao;
@@ -94,6 +109,11 @@ public class AgendamentoEntity {
         this.cliente = cliente;
     }
 
+    public String getClienteAvulsoNome() { return clienteAvulsoNome; }
+    public void setClienteAvulsoNome(String clienteAvulsoNome) { this.clienteAvulsoNome = clienteAvulsoNome; }
+    public String getClienteAvulsoTelefone() { return clienteAvulsoTelefone; }
+    public void setClienteAvulsoTelefone(String clienteAvulsoTelefone) { this.clienteAvulsoTelefone = clienteAvulsoTelefone; }
+
     public BarbeiroEntity getBarbeiro() {
         return barbeiro;
     }
@@ -133,6 +153,11 @@ public class AgendamentoEntity {
     public void setStatusAgendamento(StatusAgendamento statusAgendamento) {
         this.statusAgendamento = statusAgendamento;
     }
+
+    public FormaPagamento getFormaPagamento() { return formaPagamento; }
+    public void setFormaPagamento(FormaPagamento formaPagamento) { this.formaPagamento = formaPagamento; }
+    public BigDecimal getValorTotalComanda() { return valorTotalComanda; }
+    public void setValorTotalComanda(BigDecimal valorTotalComanda) { this.valorTotalComanda = valorTotalComanda; }
 
     public String getObservacao() {
         return observacao;

@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "servicos")
@@ -27,6 +28,10 @@ public class ServicoEntity {
 
     @Column(nullable = false)
     private Double preco;
+
+    @Column(name = "porcentagem_barbearia", nullable = false, precision = 5, scale = 2,
+            columnDefinition = "DECIMAL(5,2) DEFAULT 50.00")
+    private BigDecimal porcentagemBarbearia = new BigDecimal("50.00");
 
     @Column(nullable = false)
     private Integer duracaoEmMinutos;
@@ -92,6 +97,10 @@ public class ServicoEntity {
     public void setPreco(Double preco) {
         this.preco = preco;
     }
+
+    public BigDecimal getPorcentagemBarbearia() { return porcentagemBarbearia; }
+
+    public void setPorcentagemBarbearia(BigDecimal porcentagemBarbearia) { this.porcentagemBarbearia = porcentagemBarbearia; }
 
     public Integer getDuracaoEmMinutos() {
         return duracaoEmMinutos;

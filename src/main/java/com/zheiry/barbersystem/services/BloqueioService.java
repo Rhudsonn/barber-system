@@ -15,6 +15,10 @@ import com.zheiry.barbersystem.mappers.BloqueioMapper;
 import com.zheiry.barbersystem.repositories.AgendamentoRepository;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
 import com.zheiry.barbersystem.repositories.BloqueioRepository;
+import com.zheiry.barbersystem.config.springSecurity.UsuarioAutenticado;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,10 +75,10 @@ public class BloqueioService {
         );
 
         List<AgendamentoEntity> agendamentosNoPeriodo = agendamentoRepository
-                .findByBarbeiroIdAndDataHoraInicioBetweenAndStatusAgendamentoNotIn(
+                .findByBarbeiroIdAndDataHoraInicioLessThanAndDataHoraFimGreaterThanAndStatusAgendamentoNotIn(
                         dto.barbeiroId(),
-                        dto.dataInicio(),
                         dto.dataFim(),
+                        dto.dataInicio(),
                         statusIgnorados
                 );
 
@@ -136,12 +140,15 @@ public class BloqueioService {
     @Transactional(readOnly = true)
     public BloqueioSaidaDto buscarPorId(Long id){
         BloqueioEntity bloqueio = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Bloqueio não encontrado"));
+        validarAcessoAoBarbeiro(bloqueio.getBarbeiro().getId());
         return BloqueioMapper.toSaidaDto(bloqueio);
     }
 
     // listarPorBarbeiro
     @Transactional(readOnly = true)
     public List<BloqueioSaidaDto> listarPorBarbeiro(Long barbeiroId){
+
+        validarAcessoAoBarbeiro(barbeiroId);
 
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado");
@@ -155,6 +162,8 @@ public class BloqueioService {
     // listarPorBarbeiroEPeriodo (útil para agenda)
     @Transactional(readOnly = true)
     public List<BloqueioSaidaDto> listarPorBarbeiroEPeriodo(Long barbeiroId, LocalDateTime inicio, LocalDateTime fim){
+
+        validarAcessoAoBarbeiro(barbeiroId);
 
         if (!barbeiroRepository.existsById(barbeiroId)) {
             throw new ResourceNotFoundException("Barbeiro não encontrado");
@@ -198,10 +207,10 @@ public class BloqueioService {
         );
 
         List<AgendamentoEntity> agendamentosNoPeriodo = agendamentoRepository
-                .findByBarbeiroIdAndDataHoraInicioBetweenAndStatusAgendamentoNotIn(
+                .findByBarbeiroIdAndDataHoraInicioLessThanAndDataHoraFimGreaterThanAndStatusAgendamentoNotIn(
                         barbeiroId,
-                        inicio,
                         fim,
+                        inicio,
                         statusIgnorados
                 );
 
@@ -209,6 +218,22 @@ public class BloqueioService {
             throw new BusinessException(
                     "Existem agendamentos neste período. Cancele-os antes de atualizar o bloqueio"
             );
+        }
+    }
+
+    private void validarAcessoAoBarbeiro(Long barbeiroId) {
+        Authentication autenticacao = SecurityContextHolder.getContext().getAuthentication();
+        if (autenticacao == null || !autenticacao.isAuthenticated()) {
+            throw new AccessDeniedException("Autenticação obrigatória.");
+        }
+        if (autenticacao.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRADOR"))) {
+            return;
+        }
+        boolean barbeiro = autenticacao.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_BARBEIRO"));
+        if (!barbeiro || !(autenticacao.getPrincipal() instanceof UsuarioAutenticado usuario)
+                || !usuario.getId().equals(barbeiroId)) {
+            throw new AccessDeniedException("Você só pode consultar os bloqueios da sua própria agenda.");
         }
     }
 }

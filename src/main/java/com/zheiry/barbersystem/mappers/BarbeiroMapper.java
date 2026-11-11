@@ -57,6 +57,7 @@ public class BarbeiroMapper {
                 entity.getTelefone(),
                 entity.getEspecialidade(),
                 entity.getEmail(),
+                entity.getFotoUrl(),
                 entity.getStatus()
         );
     }
@@ -69,7 +70,8 @@ public class BarbeiroMapper {
                 entity.getId(),
                 entity.getNome(),
                 entity.getTelefone(),
-                entity.getEspecialidade()
+                entity.getEspecialidade(),
+                entity.getFotoUrl()
         );
     }
 
@@ -121,6 +123,9 @@ public class BarbeiroMapper {
         }
         if (dto.email() != null) {
             entity.setEmail(dto.email());
+        }
+        if (dto.fotoUrl() != null) {
+            entity.setFotoUrl(dto.fotoUrl());
         }
     }
 

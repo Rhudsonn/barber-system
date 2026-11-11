@@ -22,6 +22,7 @@ public class BarbeariaMapper {
         entity.setCnpj(dto.cnpj());
         entity.setTelefone(dto.telefone());
         entity.setWhatsapp(dto.whatsapp());
+        entity.setInstagram(dto.instagram());
         entity.setEmail(dto.email());
         entity.setEndereco(dto.endereco());
         entity.setCidade(dto.cidade());
@@ -42,12 +43,14 @@ public class BarbeariaMapper {
                 entity.getCnpj(),
                 entity.getTelefone(),
                 entity.getWhatsapp(),
+                entity.getInstagram(),
                 entity.getEmail(),
                 entity.getEndereco(),
                 entity.getCidade(),
                 entity.getEstado(),
                 entity.getCep(),
                 entity.getDescricao(),
+                entity.getLogoUrl(),
                 HorarioFuncionamentoMapper.toSaidaDtoList(entity.getHorarios())
         );
     }
@@ -63,12 +66,14 @@ public class BarbeariaMapper {
                 entity.getCnpj(),
                 entity.getTelefone(),
                 entity.getWhatsapp(),
+                entity.getInstagram(),
                 entity.getEmail(),
                 entity.getEndereco(),
                 entity.getCidade(),
                 entity.getEstado(),
                 entity.getCep(),
                 entity.getDescricao(),
+                entity.getLogoUrl(),
                 List.of()
         );
     }
@@ -84,16 +89,20 @@ public class BarbeariaMapper {
     public static void atualizarEntity(BarbeariaAtualizaDto dto, BarbeariaEntity entity) {
         if (dto == null || entity == null) return;
 
-        entity.setNomeFantasia(dto.nomeFantasia());
-        entity.setRazaoSocial(dto.razaoSocial());
-        entity.setTelefone(dto.telefone());
-        entity.setWhatsapp(dto.whatsapp());
-        entity.setEmail(dto.email());
-        entity.setEndereco(dto.endereco());
-        entity.setCidade(dto.cidade());
-        entity.setEstado(dto.estado() != null ? dto.estado().toUpperCase() : null);
-        entity.setCep(dto.cep());
-        entity.setDescricao(dto.descricao());
+        if (dto.nomeFantasia() != null) entity.setNomeFantasia(dto.nomeFantasia());
+        if (dto.razaoSocial() != null) entity.setRazaoSocial(dto.razaoSocial());
+        if (dto.telefone() != null) entity.setTelefone(dto.telefone());
+        if (dto.whatsapp() != null) entity.setWhatsapp(dto.whatsapp());
+        if (dto.instagram() != null) entity.setInstagram(dto.instagram());
+        if (dto.email() != null) entity.setEmail(dto.email());
+        if (dto.endereco() != null) entity.setEndereco(dto.endereco());
+        if (dto.cidade() != null) entity.setCidade(dto.cidade());
+        if (dto.estado() != null) entity.setEstado(dto.estado().toUpperCase());
+        if (dto.cep() != null) entity.setCep(dto.cep());
+        if (dto.descricao() != null) entity.setDescricao(dto.descricao());
+        if (dto.logoUrl() != null) {
+            entity.setLogoUrl(dto.logoUrl());
+        }
     }
 
 
