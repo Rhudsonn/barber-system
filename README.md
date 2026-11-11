@@ -42,7 +42,7 @@ Para conferir o build web, rode `npm run build` em `frontend/web`.
 O passo a passo completo de instalação do Android Studio/AVD, Expo Go, variáveis de ambiente e execução está em [frontend/README.md](frontend/README.md#aplicativo-mobile-android). A API e o PostgreSQL devem estar rodando; no emulador, o app aponta para `http://10.0.2.2:8080`.
 ## Testes
 
-Os testes backend usam H2 temporário e não acessam o PostgreSQL local. Rode `./mvnw.cmd test` na raiz. O schema real do PostgreSQL é controlado pelas migrations Flyway; não altere o schema manualmente para contornar falhas de validação.
+A maioria dos testes usa H2 temporário. Rode `./mvnw.cmd test` na raiz. Com o Docker em execução, o `FlywaySchemaCompatibilityTest` usa PostgreSQL 16 descartável via Testcontainers para validar as migrações e o esquema. Sem Docker, os dois casos desse teste são pulados. O schema do PostgreSQL é controlado pelas migrations Flyway.
 
 ### Checklist manual antes de produção
 
