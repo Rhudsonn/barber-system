@@ -1,16 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Check, Clock3, Scissors, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Clock3, MessageCircle, Scissors, ShieldCheck, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { requisicao, ErroRequisicao } from '../api'
 import { useSessao } from '../sessao'
-import type { Barbearia, Servico } from '../tipos'
+import type { BarbeariaPublica, Servico } from '../tipos'
 import { Botao, Campo, Cartao } from '../componentes/ui'
 import { dicaSenha, dicaTelefone, padraoSenha, padraoTelefone } from '../validacoes'
+import { linkWhatsAppBrasileiro } from '../whatsapp'
 
-function Fundo({ children }: { children: React.ReactNode | ((barbearia: Barbearia | null) => React.ReactNode) }) {
-  const [barbearia, setBarbearia] = useState<Barbearia | null>(null)
-  useEffect(() => { void requisicao<Barbearia>('/barbearias/principal').then(setBarbearia).catch(() => undefined) }, [])
+function Fundo({ children }: { children: React.ReactNode | ((barbearia: BarbeariaPublica | null) => React.ReactNode) }) {
+  const [barbearia, setBarbearia] = useState<BarbeariaPublica | null>(null)
+  useEffect(() => { void requisicao<BarbeariaPublica>('/barbearias/principal').then(setBarbearia).catch(() => undefined) }, [])
   useEffect(() => { if (barbearia?.nomeFantasia) document.title = barbearia.nomeFantasia }, [barbearia?.nomeFantasia])
   return <div className="pagina-publica"><header className="cabecalho-publico"><Link to="/" className="marca">{barbearia?.logoUrl ? <img className="marca-logo" src={barbearia.logoUrl} alt="Logo da barbearia"/> : <span className="marca-simbolo"><Scissors size={19}/></span>}<span className="marca-nome">{barbearia?.nomeFantasia || 'Barbearia'}</span></Link><nav><Link to="/entrar">Entrar</Link><Link className="botao botao-primario" to="/cadastro">Criar conta</Link></nav></header>{typeof children === 'function' ? children(barbearia) : children}<footer className="rodape-publico">© {new Date().getFullYear()} {barbearia?.nomeFantasia || 'Barbearia'} · Cuidado em cada detalhe.</footer></div>
 }
@@ -20,7 +21,7 @@ export function PaginaInicial() {
   useEffect(() => { void requisicao<Servico[]>('/servicos/lista/ativos').then(setServicos).catch(() => undefined) }, [])
   return <Fundo>{barbearia => <main><section className="hero"><div className="hero-selo"><Sparkles size={14}/> EXPERIÊNCIA BARBER</div><h1>Seu próximo corte<br/>começa <em>aqui.</em></h1><p>Agende sem complicação e tenha mais tempo para o que realmente importa. Cuidado, estilo e pontualidade em um só lugar.</p><div className="hero-acoes"><Link className="botao botao-primario botao-grande" to="/entrar">Agendar horário <ArrowRight size={17}/></Link><Link className="botao botao-secundario botao-grande" to="/cadastro">Criar minha conta</Link></div><div className="hero-destaques"><span><Check/> Profissionais experientes</span><span><Check/> Agenda em tempo real</span></div></section>
     <section className="secao-publica"><div className="cabecalho-secao"><div><span className="sobrelinha">CUIDADO SOB MEDIDA</span><h2>Serviços em destaque</h2></div><Link to="/entrar">Ver agenda <ArrowRight size={15}/></Link></div>{servicos.length ? <div className="grade-servicos">{servicos.slice(0, 3).map(s => <Cartao key={s.id}><span className="icone-card"><Scissors size={19}/></span><h3>{s.nome}</h3><p>{s.descrica || s.categoria}</p><div className="servico-rodape"><span>{s.duracaoEmMinutos} min</span><strong>{moeda(s.preco)}</strong></div></Cartao>)}</div> : <Cartao className="sobre-barbearia"><span className="icone-card"><CalendarDays/></span><h3>Encontre seu melhor horário</h3><p>Consulte os serviços e horários disponíveis ao entrar na sua conta.</p><Link className="link-roxo" to="/entrar">Acessar agenda <ArrowRight size={15}/></Link></Cartao>}</section>
-    <section className="sobre-publica"><div><span className="sobrelinha">A CASA</span><h2>{barbearia?.nomeFantasia || 'Estilo com identidade.'}</h2><p>{barbearia?.descricao || 'Um espaço pensado para você cuidar do visual com calma, qualidade e atenção aos detalhes.'}</p><div className="info-linha"><Clock3 size={17}/><span>{barbearia?.endereco ? `${barbearia.endereco}${barbearia.cidade ? ` · ${barbearia.cidade}` : ''}` : 'Agendamentos simples, rápidos e organizados.'}</span></div></div><div className="sobre-badge"><ShieldCheck size={32}/><strong>Seu tempo<br/>bem cuidado.</strong><span>Agendamento seguro e organizado.</span></div></section>
+    <section className="sobre-publica"><div><span className="sobrelinha">A CASA</span><h2>{barbearia?.nomeFantasia || 'Estilo com identidade.'}</h2><p>{barbearia?.descricao || 'Um espaço pensado para você cuidar do visual com calma, qualidade e atenção aos detalhes.'}</p><div className="info-linha"><Clock3 size={17}/><span>{barbearia?.endereco ? `${barbearia.endereco}${barbearia.cidade ? ` · ${barbearia.cidade}` : ''}` : 'Agendamentos simples, rápidos e organizados.'}</span></div>{linkWhatsAppBrasileiro(barbearia?.whatsapp)&&<a className="botao botao-secundario" href={linkWhatsAppBrasileiro(barbearia?.whatsapp)} target="_blank" rel="noopener noreferrer" aria-label="Conversar pelo WhatsApp com a barbearia"><MessageCircle size={18}/> Conversar pelo WhatsApp</a>}</div><div className="sobre-badge"><ShieldCheck size={32}/><strong>Seu tempo<br/>bem cuidado.</strong><span>Agendamento seguro e organizado.</span></div></section>
   </main>}</Fundo>
 }
 
@@ -44,7 +45,16 @@ export function RecuperarSenha() {
 }
 
 export function RedefinirSenha() {
-  const [params] = useSearchParams(); const [token, setToken] = useState(params.get('token') || ''); const [novaSenha, setSenha] = useState(''); const [confirmaNovaSenha, setConfirma] = useState(''); const [carregando, setCarregando] = useState(false); const navegar = useNavigate()
+  const [params] = useSearchParams()
+  const [token, setToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('token') || params.get('token') || '')
+  const [novaSenha, setSenha] = useState(''); const [confirmaNovaSenha, setConfirma] = useState(''); const [carregando, setCarregando] = useState(false); const navegar = useNavigate()
+  useEffect(() => {
+    if (!token || (!window.location.hash && !window.location.search)) return
+    const url = new URL(window.location.href)
+    url.hash = ''
+    url.searchParams.delete('token')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
+  }, [token])
   async function enviar(e: FormEvent) { e.preventDefault(); if (novaSenha !== confirmaNovaSenha) { toast.error('As senhas não coincidem.'); return } setCarregando(true); try { await requisicao('/login/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha, confirmaNovaSenha }) }); toast.success('Senha atualizada.'); navegar('/entrar') } catch (e) { toast.error(e instanceof ErroRequisicao ? e.message : 'Não foi possível redefinir a senha.') } finally { setCarregando(false) } }
   return <Fundo><main className="formulario-publico"><div className="formulario-intro"><span className="sobrelinha">NOVA SENHA</span><h1>Redefina seu acesso</h1><p>Use o token recebido e escolha uma senha forte.</p></div><Cartao><form className="formulario" onSubmit={enviar}><Campo rotulo="Token de recuperação" required value={token} onChange={e => setToken(e.target.value)}/><Campo rotulo="Nova senha" type="password" required minLength={8} value={novaSenha} onChange={e => setSenha(e.target.value)}/><Campo rotulo="Confirme a nova senha" type="password" required value={confirmaNovaSenha} onChange={e => setConfirma(e.target.value)}/><Botao type="submit" carregando={carregando} className="botao-largo">Salvar nova senha</Botao></form></Cartao></main></Fundo>
 }

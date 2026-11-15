@@ -22,6 +22,7 @@ import com.zheiry.barbersystem.repositories.AdministradorRepository;
 import com.zheiry.barbersystem.repositories.BarbeiroRepository;
 import com.zheiry.barbersystem.repositories.ClienteRepository;
 import com.zheiry.barbersystem.services.RecuperacaoSenhaService;
+import com.zheiry.barbersystem.security.TentativasPublicasLimitadas;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -50,11 +51,12 @@ public class LoginController {
     private final AdministradorRepository administradorRepository;
     private final BarbeiroRepository barbeiroRepository;
     private final ClienteRepository clienteRepository;
+    private final TentativasPublicasLimitadas tentativasPublicas;
 
     public LoginController(AuthenticationManager authenticationManager, JwtService jwtService,
                            CustomUserDetailsService userDetailsService, RecuperacaoSenhaService recuperacaoSenhaService,
                            AdministradorRepository administradorRepository, BarbeiroRepository barbeiroRepository,
-                           ClienteRepository clienteRepository) {
+                           ClienteRepository clienteRepository, TentativasPublicasLimitadas tentativasPublicas) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
@@ -62,6 +64,7 @@ public class LoginController {
         this.administradorRepository = administradorRepository;
         this.barbeiroRepository = barbeiroRepository;
         this.clienteRepository = clienteRepository;
+        this.tentativasPublicas = tentativasPublicas;
     }
 
     @GetMapping("/meu-perfil")
@@ -90,6 +93,8 @@ public class LoginController {
     @PostMapping
     public ResponseEntity<LoginSaidaDto> login(@RequestBody @Valid LoginEntradaDto dto) {
 
+        tentativasPublicas.verificarLoginPorConta(dto.email());
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.email(), dto.senha())
         );
@@ -110,6 +115,7 @@ public class LoginController {
     @PostMapping("/esqueci-senha")
     public ResponseEntity<RecuperacaoSenhaSaidaDto> solicitarRecuperacao(
             @RequestBody @Valid RecuperacaoSenhaSolicitarDto dto) {
+        tentativasPublicas.verificarRecuperacaoPorConta(dto.email());
         return ResponseEntity.ok(recuperacaoSenhaService.solicitar(dto.email()));
     }
 

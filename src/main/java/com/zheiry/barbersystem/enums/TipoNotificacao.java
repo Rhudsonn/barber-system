@@ -5,5 +5,7 @@ public enum TipoNotificacao {
     LEMBRETE_24H,
     LEMBRETE_1H,
     LEMBRETE_30MIN,
-    CANCELAMENTO
+    CANCELAMENTO,
+    LEMBRETE_2H,
+    ANIVERSARIO
 }

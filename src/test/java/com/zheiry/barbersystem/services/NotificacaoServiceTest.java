@@ -55,7 +55,7 @@ class NotificacaoServiceTest {
     @Test
     void consultaPreferenciaDoClienteAutenticadoSemReceberIdDoRequest() {
         ClienteEntity cliente = cliente(7L);
-        cliente.setCanalNotificacao(CanalNotificacao.EMAIL);
+        cliente.setCanalNotificacao(CanalNotificacao.EMAIL.name());
         cliente.setNotificacoesAutorizadas(true);
         autenticar(7L);
         when(clienteRepository.findById(7L)).thenReturn(Optional.of(cliente));
@@ -67,34 +67,34 @@ class NotificacaoServiceTest {
     }
 
     @Test
-    void atualizaPreferenciaApenasDoClienteAutenticado() {
+    void atualizaPreferenciaApenasDoClienteAutenticadoParaEmail() {
         ClienteEntity cliente = cliente(7L);
         autenticar(7L);
         when(clienteRepository.findById(7L)).thenReturn(Optional.of(cliente));
 
-        var dto = service.atualizarPreferencia(new PreferenciaNotificacaoAtualizaDto(CanalNotificacao.WHATSAPP, true));
+        var dto = service.atualizarPreferencia(new PreferenciaNotificacaoAtualizaDto(CanalNotificacao.EMAIL, true));
 
-        assertEquals(CanalNotificacao.WHATSAPP, cliente.getCanalNotificacao());
+        assertEquals(CanalNotificacao.EMAIL.name(), cliente.getCanalNotificacao());
         assertTrue(cliente.isNotificacoesAutorizadas());
         verify(clienteRepository).save(cliente);
         assertEquals(7L, cliente.getId());
-        assertEquals(CanalNotificacao.WHATSAPP, dto.canal());
+        assertEquals(CanalNotificacao.EMAIL, dto.canal());
     }
 
     @Test
-    void rejeitaWhatsAppSemTelefone() {
+    void rejeitaEmailSemEnderecoDeEmail() {
         ClienteEntity cliente = cliente(7L);
-        cliente.setTelefone(" ");
+        cliente.setEmail(" ");
         autenticar(7L);
         when(clienteRepository.findById(7L)).thenReturn(Optional.of(cliente));
 
         assertThrows(BadRequestException.class,
-                () -> service.atualizarPreferencia(new PreferenciaNotificacaoAtualizaDto(CanalNotificacao.WHATSAPP, true)));
+                () -> service.atualizarPreferencia(new PreferenciaNotificacaoAtualizaDto(CanalNotificacao.EMAIL, true)));
         verify(clienteRepository, never()).save(any());
     }
 
     @Test
-    void programaTresLembretesPersistidosQuandoClienteAutorizou() {
+    void programaLembreteDeDuasHorasPersistidoQuandoClienteAutorizou() {
         AgendamentoEntity agendamento = agendamento(9L, 7L, java.time.LocalDateTime.now(RELOGIO).plusDays(2));
         when(barbeariaRepository.findFirstByOrderByIdAsc()).thenReturn(Optional.of(barbearia()));
         when(notificacaoRepository.findByChaveIdempotencia(anyString())).thenReturn(Optional.empty());
@@ -102,14 +102,32 @@ class NotificacaoServiceTest {
         service.agendamentoCriado(agendamento);
 
         ArgumentCaptor<NotificacaoEntity> captor = ArgumentCaptor.forClass(NotificacaoEntity.class);
-        verify(notificacaoRepository, times(4)).save(captor.capture());
+        verify(notificacaoRepository, times(2)).save(captor.capture());
         assertEquals(1, captor.getAllValues().stream().filter(n -> n.getTipo() == TipoNotificacao.CONFIRMACAO).count());
-        assertEquals(3, captor.getAllValues().stream().filter(n -> n.getTipo().name().startsWith("LEMBRETE_")).count());
+        assertEquals(1, captor.getAllValues().stream().filter(n -> n.getTipo() == TipoNotificacao.LEMBRETE_2H).count());
+        assertTrue(captor.getAllValues().stream().allMatch(n -> "EMAIL".equals(n.getCanal())));
         assertTrue(captor.getAllValues().stream().allMatch(n -> n.getStatus() == StatusNotificacao.PENDENTE));
     }
 
     @Test
-    void naoEnviaNemCriaLembreteComHorarioQueJaPassou() {
+    void programaAniversarioSomenteComoEmailComChaveAnualIdempotente() {
+        ClienteEntity cliente = cliente(7L);
+        when(clienteRepository.buscarAniversariantes(any(), anyInt(), anyInt())).thenReturn(List.of(cliente));
+        when(notificacaoRepository.findByChaveIdempotencia("cliente:7:ANIVERSARIO:2026"))
+                .thenReturn(Optional.empty());
+        when(barbeariaRepository.findFirstByOrderByIdAsc()).thenReturn(Optional.of(barbearia()));
+
+        service.programarAniversariantes();
+
+        ArgumentCaptor<NotificacaoEntity> captor = ArgumentCaptor.forClass(NotificacaoEntity.class);
+        verify(notificacaoRepository).save(captor.capture());
+        assertEquals(TipoNotificacao.ANIVERSARIO, captor.getValue().getTipo());
+        assertEquals("EMAIL", captor.getValue().getCanal());
+        assertEquals("cliente:7:ANIVERSARIO:2026", captor.getValue().getChaveIdempotencia());
+    }
+
+    @Test
+    void marcaLembreteComHorarioQueJaPassouComoCancelado() {
         AgendamentoEntity agendamento = agendamento(9L, 7L, java.time.LocalDateTime.now(RELOGIO).plusMinutes(20));
         when(barbeariaRepository.findFirstByOrderByIdAsc()).thenReturn(Optional.of(barbearia()));
         when(notificacaoRepository.findByChaveIdempotencia(anyString())).thenReturn(Optional.empty());
@@ -123,9 +141,9 @@ class NotificacaoServiceTest {
 
         service.agendamentoCriado(agendamento);
 
-        verify(notificacaoRepository, times(7)).save(any(NotificacaoEntity.class));
-        assertEquals(3, statusSalvos.stream().filter(status -> status == StatusNotificacao.CANCELADA).count());
-        assertEquals(4, statusSalvos.stream().filter(status -> status == StatusNotificacao.PENDENTE).count());
+        verify(notificacaoRepository, times(3)).save(any(NotificacaoEntity.class));
+        assertEquals(1, statusSalvos.stream().filter(status -> status == StatusNotificacao.CANCELADA).count());
+        assertEquals(2, statusSalvos.stream().filter(status -> status == StatusNotificacao.PENDENTE).count());
     }
 
     @Test
@@ -149,13 +167,14 @@ class NotificacaoServiceTest {
 
         verify(notificacaoRepository).cancelarPendentes(eq(9L), eq(StatusNotificacao.PENDENTE),
                 eq(StatusNotificacao.CANCELADA), anyList(), contains("cancelado"));
-        verify(notificacaoRepository).save(argThat(n -> n.getTipo() == TipoNotificacao.CANCELAMENTO));
+        verify(notificacaoRepository).save(argThat(n -> n.getTipo() == TipoNotificacao.CANCELAMENTO
+                && "EMAIL".equals(n.getCanal())));
     }
 
     @Test
     void desativarConsentimentoCancelaFilaAindaPendente() {
         ClienteEntity cliente = cliente(7L);
-        cliente.setCanalNotificacao(CanalNotificacao.EMAIL);
+        cliente.setCanalNotificacao(CanalNotificacao.EMAIL.name());
         autenticar(7L);
         when(clienteRepository.findById(7L)).thenReturn(Optional.of(cliente));
         NotificacaoEntity pendente = new NotificacaoEntity();
@@ -174,7 +193,7 @@ class NotificacaoServiceTest {
         cliente.setEmail("cliente@example.test");
         cliente.setTelefone("11999999999");
         cliente.setNotificacoesAutorizadas(true);
-        cliente.setCanalNotificacao(CanalNotificacao.EMAIL);
+        cliente.setCanalNotificacao(CanalNotificacao.EMAIL.name());
         return cliente;
     }
 

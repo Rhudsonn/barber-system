@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.repositories;
 
+import com.zheiry.barbersystem.config.PostgresTestBase;
 import com.zheiry.barbersystem.entities.NotificacaoEntity;
 import com.zheiry.barbersystem.enums.CanalNotificacao;
 import com.zheiry.barbersystem.enums.StatusNotificacao;
@@ -13,16 +14,8 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataJpaTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:notificacoes;MODE=MySQL;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect"
-})
-class NotificacaoRepositoryIntegracaoTest {
+@DataJpaTest
+class NotificacaoRepositoryIntegracaoTest extends PostgresTestBase {
     @Autowired NotificacaoRepository repository;
 
     @Test
@@ -55,7 +48,7 @@ class NotificacaoRepositoryIntegracaoTest {
         n.setClienteId(1L);
         n.setAgendamentoId(2L);
         n.setTipo(TipoNotificacao.LEMBRETE_1H);
-        n.setCanal(CanalNotificacao.EMAIL);
+        n.setCanal(CanalNotificacao.EMAIL.name());
         n.setStatus(StatusNotificacao.PENDENTE);
         n.setChaveIdempotencia(chave);
         n.setDestinatario("cliente@example.test");

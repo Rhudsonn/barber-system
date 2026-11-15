@@ -8,24 +8,20 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Component
 public class NotificacaoProcessador {
     private final NotificacaoService service;
     private final NotificacaoConfiguracao configuracao;
     private final Clock relogio;
-    private final Map<com.zheiry.barbersystem.enums.CanalNotificacao, CanalNotificador> notificadores;
+    private final ResendEmailService resendEmailService;
 
     public NotificacaoProcessador(NotificacaoService service, NotificacaoConfiguracao configuracao,
-                                  Clock relogio, List<CanalNotificador> notificadores) {
+                                  Clock relogio, ResendEmailService resendEmailService) {
         this.service = service;
         this.configuracao = configuracao;
         this.relogio = relogio;
-        this.notificadores = notificadores.stream().collect(Collectors.toMap(CanalNotificador::canal, Function.identity()));
+        this.resendEmailService = resendEmailService;
     }
 
     @Scheduled(fixedDelayString = "${app.notificacoes.intervalo-ms:30000}")
@@ -34,17 +30,18 @@ public class NotificacaoProcessador {
         for (Long id : service.buscarNotificacoesDevidas(agora)) {
             NotificacaoEntity notificacao = service.reservar(id, agora);
             if (notificacao == null) continue;
-            String estado = notificacao.getCanal() == com.zheiry.barbersystem.enums.CanalNotificacao.EMAIL
-                    ? configuracao.estadoResend() : configuracao.estadoWhatsApp();
+            if (!"EMAIL".equalsIgnoreCase(notificacao.getCanal())) {
+                service.cancelarCanalDesativado(id);
+                continue;
+            }
+            String estado = configuracao.estadoResend();
             // Desabilitada ou sem configuração: conserva a fila pendente e não faz chamada externa.
             if (!"CONFIGURADA".equals(estado)) {
                 service.liberarReserva(notificacao.getId(), agora);
                 continue;
             }
             try {
-                CanalNotificador notificador = notificadores.get(notificacao.getCanal());
-                if (notificador == null) throw new FalhaEnvioNotificacaoException("Canal de notificação sem implementação.", false);
-                service.registrarEnvio(id, notificador.enviar(notificacao), LocalDateTime.now(relogio));
+                service.registrarEnvio(id, resendEmailService.enviarNotificacao(notificacao), LocalDateTime.now(relogio));
             } catch (FalhaEnvioNotificacaoException ex) {
                 service.registrarFalha(id, ex.getMessage(), ex.isRetentavel(), LocalDateTime.now(relogio));
             } catch (RuntimeException ex) {
@@ -53,4 +50,10 @@ public class NotificacaoProcessador {
             }
         }
     }
+
+    @Scheduled(cron = "0 0 8 * * *", zone = "${app.time-zone:America/Sao_Paulo}")
+    public void revisarLembretesAgendados() { service.revisarLembretesFuturos(); }
+
+    @Scheduled(cron = "0 0 9 * * *", zone = "${app.time-zone:America/Sao_Paulo}")
+    public void enviarAniversarios() { service.programarAniversariantes(); }
 }

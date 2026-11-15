@@ -2,7 +2,6 @@ package com.zheiry.barbersystem.services;
 
 import com.zheiry.barbersystem.config.NotificacaoConfiguracao;
 import com.zheiry.barbersystem.entities.NotificacaoEntity;
-import com.zheiry.barbersystem.enums.CanalNotificacao;
 import com.zheiry.barbersystem.enums.TipoNotificacao;
 import com.zheiry.barbersystem.exception.FalhaEnvioNotificacaoException;
 import org.junit.jupiter.api.Test;
@@ -29,40 +28,41 @@ class NotificadoresHttpTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andRespond(withSuccess("{\"id\":\"resend-id\"}", MediaType.APPLICATION_JSON));
 
-        var resultado = new NotificadorResend(config, builder).enviar(notificacao(CanalNotificacao.EMAIL));
+        var resultado = new ResendEmailService(config, builder)
+                .enviarNotificacao(notificacao("EMAIL"));
 
         assertEquals("resend-id", resultado.identificadorProvedor());
         servidor.verify();
     }
 
     @Test
-    void whatsappUsaEndpointGraphConfiguradoEModeloAprovado() {
+    void recuperacaoDeSenhaUsaOMesmoProvedorResendComChaveIdempotente() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer servidor = MockRestServiceServer.bindTo(builder).build();
-        NotificacaoConfiguracao config = configWhatsApp();
-        servidor.expect(requestTo("https://graph.facebook.com/v-test/phone-id/messages"))
+        NotificacaoConfiguracao config = configResend();
+        servidor.expect(requestTo("https://api.resend.com/emails"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("Authorization", "Bearer token-de-teste"))
+                .andExpect(header("Idempotency-Key", "recuperacao-senha:8"))
                 .andExpect(content().json("""
-                        {"messaging_product":"whatsapp","recipient_type":"individual","to":"5511999999999","type":"template",
-                         "template":{"name":"confirmacao_teste","language":{"code":"pt_BR"},"components":[{"type":"body","parameters":[
-                         {"type":"text","text":"Cliente"},{"type":"text","text":"Barbearia"},{"type":"text","text":"Corte"},
-                         {"type":"text","text":"Profissional"},{"type":"text","text":"25/10/2026 às 10:00"}]}]}}
+                        {"from":"Barbearia <contato@example.test>","to":"cliente@example.test",
+                         "subject":"Redefinição de senha","text":"Use o link de recuperação."}
                         """, true))
-                .andRespond(withSuccess("{\"messages\":[{\"id\":\"wamid.test\"}]}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"id\":\"resend-recovery-id\"}", MediaType.APPLICATION_JSON));
 
-        var resultado = new NotificadorWhatsAppCloud(config, builder).enviar(notificacao(CanalNotificacao.WHATSAPP));
+        var resultado = new ResendEmailService(config, builder).enviarEmail(
+                "cliente@example.test", "Redefinição de senha", "Use o link de recuperação.", "recuperacao-senha:8");
 
-        assertEquals("wamid.test", resultado.identificadorProvedor());
+        assertEquals("resend-recovery-id", resultado.identificadorProvedor());
         servidor.verify();
     }
 
     @Test
     void faltaDeCredencialEhReportadaSemTentarChamada() {
-        NotificadorResend notificador = new NotificadorResend(new NotificacaoConfiguracao(), RestClient.builder());
+        ResendEmailService notificador = new ResendEmailService(new NotificacaoConfiguracao(), RestClient.builder());
 
         FalhaEnvioNotificacaoException erro = assertThrows(FalhaEnvioNotificacaoException.class,
-                () -> notificador.enviar(notificacao(CanalNotificacao.EMAIL)));
+                () -> notificador.enviarNotificacao(notificacao("EMAIL")));
 
         assertFalse(erro.isRetentavel());
         assertFalse(erro.getMessage().contains("token"));
@@ -76,24 +76,7 @@ class NotificadoresHttpTest {
         return c;
     }
 
-    private NotificacaoConfiguracao configWhatsApp() {
-        NotificacaoConfiguracao c = new NotificacaoConfiguracao();
-        var w = c.getWhatsapp();
-        w.setAtivo(true);
-        w.setVersaoGraph("v-test");
-        w.setPhoneNumberId("phone-id");
-        w.setTokenAcesso("token-de-teste");
-        w.setCodigoPaisPadrao("55");
-        for (TipoNotificacao tipo : TipoNotificacao.values()) {
-            NotificacaoConfiguracao.ModeloMensagem m = new NotificacaoConfiguracao.ModeloMensagem();
-            m.setNome(tipo == TipoNotificacao.CONFIRMACAO ? "confirmacao_teste" : tipo.name().toLowerCase());
-            m.setIdioma("pt_BR");
-            w.getModelos().put(tipo, m);
-        }
-        return c;
-    }
-
-    private NotificacaoEntity notificacao(CanalNotificacao canal) {
+    private NotificacaoEntity notificacao(String canal) {
         NotificacaoEntity n = new NotificacaoEntity();
         n.setCanal(canal);
         n.setChaveIdempotencia("notificacao:1");

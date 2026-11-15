@@ -14,7 +14,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate",
@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FlywaySchemaCompatibilityTest {
 
     @Container
-    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
@@ -38,7 +38,7 @@ class FlywaySchemaCompatibilityTest {
 
     @Test
     void migrationCriaSchemaCompativelComAsEntidades() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
     }
 
     @Test
@@ -66,7 +66,7 @@ class FlywaySchemaCompatibilityTest {
                 .schemas(schema).load();
         upgrade.migrate();
 
-        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(upgrade.info().current().getVersion().getVersion()).isEqualTo("7");
         assertThat(jdbc.queryForMap("""
                 SELECT tipo_evento, cliente_nome, forma_pagamento, usuario_email
                 FROM upgrade_v4.historico_agendamentos WHERE agendamento_id = 1

@@ -2,6 +2,7 @@ package com.zheiry.barbersystem.controller;
 
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaAtualizaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaDto;
+import com.zheiry.barbersystem.dto.barbearia.BarbeariaPublicaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaSaidaDto;
 import com.zheiry.barbersystem.services.BarbeariaService;
 import jakarta.validation.Valid;
@@ -31,16 +32,24 @@ public class BarbeariaController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<BarbeariaSaidaDto> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
     @GetMapping("/principal")
-    public ResponseEntity<BarbeariaSaidaDto> buscarPrincipal() {
+    public ResponseEntity<BarbeariaPublicaDto> buscarPrincipal() {
         return ResponseEntity.ok(service.buscarPrincipal());
     }
 
+    @GetMapping("/principal/administracao")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<BarbeariaSaidaDto> buscarPrincipalAdministrativa() {
+        return ResponseEntity.ok(service.buscarPrincipalAdministrativa());
+    }
+
     @GetMapping
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<List<BarbeariaSaidaDto>> listarTodas() {
         return ResponseEntity.ok(service.listarTodas());
     }

@@ -8,6 +8,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ public class BootstrapAdministrador implements ApplicationRunner {
     private final String telefone;
     private final String email;
     private final String senha;
+    private final Environment environment;
 
     public BootstrapAdministrador(
             AdministradorRepository repository,
@@ -27,17 +29,22 @@ public class BootstrapAdministrador implements ApplicationRunner {
             @Value("${app.bootstrap-admin.nome:}") String nome,
             @Value("${app.bootstrap-admin.telefone:}") String telefone,
             @Value("${app.bootstrap-admin.email:}") String email,
-            @Value("${app.bootstrap-admin.password:}") String senha) {
+            @Value("${app.bootstrap-admin.password:}") String senha,
+            Environment environment) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.nome = nome;
         this.telefone = telefone;
         this.email = email;
         this.senha = senha;
+        this.environment = environment;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod")) {
+            throw new IllegalStateException("O bootstrap de administrador deve permanecer desativado em produção.");
+        }
         if (repository.count() > 0) return;
         if (nome.isBlank() || telefone.isBlank() || email.isBlank() || senha.length() < 12) {
             throw new IllegalStateException("Configure nome, telefone, e-mail e uma senha de pelo menos 12 caracteres para criar o administrador inicial.");

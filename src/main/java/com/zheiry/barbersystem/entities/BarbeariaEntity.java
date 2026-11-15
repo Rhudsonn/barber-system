@@ -25,7 +25,7 @@ public class BarbeariaEntity {
     @Column(nullable = false, length = 11, unique = true)
     private String telefone;
 
-    @Column(length = 20, unique = true)
+    @Column(name = "whatsapp", length = 20, unique = true)
     private String whatsapp;
 
     @Column(length = 2048)
@@ -60,13 +60,12 @@ public class BarbeariaEntity {
     public BarbeariaEntity() {
     }
 
-    public BarbeariaEntity(Long id, String nomeFantasia, String razaoSocial, String cnpj, String telefone, String whatsapp, String email, String endereco, String cidade, String estado, String cep, String descricao, List<HorarioFuncionamentoEntity> horarios) {
+    public BarbeariaEntity(Long id, String nomeFantasia, String razaoSocial, String cnpj, String telefone, String email, String endereco, String cidade, String estado, String cep, String descricao, List<HorarioFuncionamentoEntity> horarios) {
         this.id = id;
         this.nomeFantasia = nomeFantasia;
         this.razaoSocial = razaoSocial;
         this.cnpj = cnpj;
         this.telefone = telefone;
-        this.whatsapp = whatsapp;
         this.email = email;
         this.endereco = endereco;
         this.cidade = cidade;
@@ -116,13 +115,9 @@ public class BarbeariaEntity {
         this.telefone = telefone;
     }
 
-    public String getWhatsapp() {
-        return whatsapp;
-    }
+    public String getWhatsapp() { return whatsapp; }
 
-    public void setWhatsapp(String whatsapp) {
-        this.whatsapp = whatsapp;
-    }
+    public void setWhatsapp(String whatsapp) { this.whatsapp = whatsapp; }
 
     public String getInstagram() { return instagram; }
 

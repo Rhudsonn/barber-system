@@ -1,5 +1,6 @@
 package com.zheiry.barbersystem.repositories;
 
+import com.zheiry.barbersystem.config.PostgresTestBase;
 import com.zheiry.barbersystem.entities.BarbeiroEntity;
 import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
@@ -11,15 +12,8 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DataJpaTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:barbeiros;MODE=MySQL;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect"
-})
-class BarbeiroRepositoryIntegracaoTest {
+@DataJpaTest
+class BarbeiroRepositoryIntegracaoTest extends PostgresTestBase {
 
     @Autowired
     private BarbeiroRepository repository;

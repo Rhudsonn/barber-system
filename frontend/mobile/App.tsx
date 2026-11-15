@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Alert, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
-import { CalendarDays, Clock3, Home, LogOut, Scissors, UserRound, Users } from 'lucide-react-native'
+import { linkWhatsAppBrasileiro } from './whatsapp'
+import { CalendarDays, CircleDollarSign, Clock3, Home, LogOut, Scissors, UserRound, Users } from 'lucide-react-native'
 
 type Perfil='CLIENTE'|'BARBEIRO'|'ADMINISTRADOR'
 type Sessao={token:string;tipo:string;usuarioId:number;perfil:Perfil}
-type Barbearia={nomeFantasia:string;logoUrl?:string}
+type Barbearia={nomeFantasia:string;logoUrl?:string;whatsapp?:string}
 type Servico={id:number;nome:string;descrica?:string;categoria:string;preco:number;duracaoEmMinutos:number}
 type Barbeiro={id:number;nome:string;especialidade?:string};type Cliente={id:number;nome:string}
 type Agendamento={id:number;clienteId:number;clienteNome:string;barbeiroId:number;barbeiroNome:string;servicoId:number;servicoNome:string;servicoDuracaoMinutos:number;servicoPreco:number;dataHoraInicio:string;statusAgendamento:string}
@@ -25,14 +26,134 @@ export default function Aplicativo(){const[sessao,setSessao]=useState<Sessao|nul
   async function sair(){await SecureStore.deleteItemAsync('barber-sessao');setSessao(null);setAba('inicio')}
   if(carregando)return <SafeAreaView style={estilos.centro}><ActivityIndicator color="#a78bfa"/></SafeAreaView>
   if(!sessao)return <TelaEntrar entrar={entrar} barbearia={barbearia}/>
-  return <SafeAreaView style={estilos.app}><StatusBar barStyle="light-content"/><View style={estilos.topo}><View style={estilos.marca}>{barbearia?.logoUrl?<Image source={{uri:barbearia.logoUrl}} style={estilos.marcaLogo} accessibilityLabel="Logo da barbearia"/>:<Scissors size={18} color="#c4b5fd"/>}<Text numberOfLines={1} style={estilos.marcaTexto}>{barbearia?.nomeFantasia||'Barbearia'}</Text></View><Pressable onPress={()=>void sair()} accessibilityLabel="Sair"><LogOut size={19} color="#aaa"/></Pressable></View><View style={estilos.conteudo}>{aba==='inicio'?<Inicio sessao={sessao} nome={perfil?.nome}/>:aba==='agenda'?<Agenda sessao={sessao}/>:aba==='servicos'?<Servicos sessao={sessao}/>:<PerfilMobile sessao={sessao} nome={perfil?.nome} sair={sair}/>}</View><View style={estilos.navegacao}>{[{id:'inicio',texto:'Início',I:Home},{id:'agenda',texto:'Agenda',I:CalendarDays},{id:'servicos',texto:'Serviços',I:Scissors},{id:'perfil',texto:'Perfil',I:UserRound}].map(({id,texto,I})=><Pressable key={id} onPress={()=>setAba(id)} style={estilos.itemNavegacao}><I size={19} color={aba===id?'#c4b5fd':'#72727c'}/><Text style={[estilos.textoNavegacao,aba===id&&estilos.textoNavegacaoAtivo]}>{texto}</Text></Pressable>)}</View></SafeAreaView>}
+  return <SafeAreaView style={estilos.app}><StatusBar barStyle="light-content"/><View style={estilos.topo}><View style={estilos.marca}>{barbearia?.logoUrl?<Image source={{uri:barbearia.logoUrl}} style={estilos.marcaLogo} accessibilityLabel="Logo da barbearia"/>:<Scissors size={18} color="#c4b5fd"/>}<Text numberOfLines={1} style={estilos.marcaTexto}>{barbearia?.nomeFantasia||'Barbearia'}</Text></View><Pressable onPress={()=>void sair()} accessibilityLabel="Sair"><LogOut size={19} color="#aaa"/></Pressable></View><View style={estilos.conteudo}>{aba==='inicio'?<Inicio sessao={sessao} nome={perfil?.nome}/>:aba==='agenda'?<Agenda sessao={sessao}/>:aba==='servicos'?<Servicos sessao={sessao}/>:aba==='comissoes'&&sessao.perfil!=='CLIENTE'?<ComissoesMobile sessao={sessao}/>:<PerfilMobile sessao={sessao} nome={perfil?.nome} sair={sair}/>}</View><View style={estilos.navegacao}>{[{id:'inicio',texto:'Início',I:Home},{id:'agenda',texto:'Agenda',I:CalendarDays},{id:'servicos',texto:'Serviços',I:Scissors},{id:'perfil',texto:'Perfil',I:UserRound}].concat(sessao.perfil==='CLIENTE'?[]:[{id:'comissoes',texto:'Comissões',I:CircleDollarSign}]).map(({id,texto,I})=><Pressable key={id} onPress={()=>setAba(id)} style={estilos.itemNavegacao}><I size={19} color={aba===id?'#c4b5fd':'#72727c'}/><Text style={[estilos.textoNavegacao,aba===id&&estilos.textoNavegacaoAtivo]}>{texto}</Text></Pressable>)}</View></SafeAreaView>}
 
-function TelaEntrar({entrar,barbearia}:{entrar:(email:string,senha:string)=>Promise<void>;barbearia:Barbearia|null}){const[email,setEmail]=useState('');const[senha,setSenha]=useState('');const[busy,setBusy]=useState(false);return <SafeAreaView style={estilos.app}><KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={estilos.telaEntrar}><View style={estilos.marcaEntrar}>{barbearia?.logoUrl?<Image source={{uri:barbearia.logoUrl}} style={estilos.logoEntrar} accessibilityLabel="Logo da barbearia"/>:<View style={estilos.logoGrande}><Scissors color="#c4b5fd" size={30}/></View>}<Text numberOfLines={1} style={estilos.nomeEntrar}>{barbearia?.nomeFantasia||'Barbearia'}</Text></View><Text style={estilos.tituloGrande}>Seu estilo,{ '\n' }<Text style={{color:'#a78bfa'}}>no seu tempo.</Text></Text><Text style={estilos.subtitulo}>Entre para acompanhar seus horários e reservar um atendimento.</Text><Text style={estilos.rotulo}>E-mail</Text><TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="voce@email.com" placeholderTextColor="#777" style={estilos.entrada}/><Text style={estilos.rotulo}>Senha</Text><TextInput value={senha} onChangeText={setSenha} secureTextEntry placeholder="Sua senha" placeholderTextColor="#777" style={estilos.entrada}/><Pressable disabled={busy} onPress={async()=>{setBusy(true);await entrar(email,senha);setBusy(false)}} style={estilos.botao}><Text style={estilos.textoBotao}>{busy?'Entrando…':'Entrar na conta'}</Text></Pressable><Text style={estilos.rodapeEntrar}>Acesse também pelo navegador em qualquer dispositivo.</Text></KeyboardAvoidingView></SafeAreaView>}
+function TelaEntrar({entrar,barbearia}:{entrar:(email:string,senha:string)=>Promise<void>;barbearia:Barbearia|null}) {
+  const [email,setEmail]=useState(''); const [senha,setSenha]=useState(''); const [busy,setBusy]=useState(false)
+  const whatsapp=linkWhatsAppBrasileiro(barbearia?.whatsapp)
+  return <SafeAreaView style={estilos.app}><KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={estilos.telaEntrar}>
+    <View style={estilos.marcaEntrar}>{barbearia?.logoUrl?<Image source={{uri:barbearia.logoUrl}} style={estilos.logoEntrar} accessibilityLabel="Logo da barbearia"/>:<View style={estilos.logoGrande}><Scissors color="#c4b5fd" size={30}/></View>}<Text numberOfLines={1} style={estilos.nomeEntrar}>{barbearia?.nomeFantasia||'Barbearia'}</Text></View>
+    <Text style={estilos.tituloGrande}>Seu estilo,{ '\n' }<Text style={{color:'#a78bfa'}}>no seu tempo.</Text></Text><Text style={estilos.subtitulo}>Entre para acompanhar seus horários e reservar um atendimento.</Text>
+    <Text style={estilos.rotulo}>E-mail</Text><TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="voce@email.com" placeholderTextColor="#777" style={estilos.entrada}/>
+    <Text style={estilos.rotulo}>Senha</Text><TextInput value={senha} onChangeText={setSenha} secureTextEntry placeholder="Sua senha" placeholderTextColor="#777" style={estilos.entrada}/>
+    <Pressable disabled={busy} onPress={async()=>{setBusy(true);await entrar(email,senha);setBusy(false)}} style={estilos.botao}><Text style={estilos.textoBotao}>{busy?'Entrando…':'Entrar na conta'}</Text></Pressable>
+    {whatsapp&&<Pressable onPress={()=>void Linking.openURL(whatsapp).catch(()=>Alert.alert('WhatsApp','Não foi possível abrir o link de contato.'))} style={estilos.botaoSecundario}><Text style={estilos.textoBotao}>Conversar pelo WhatsApp</Text></Pressable>}
+    <Text style={estilos.rodapeEntrar}>Acesse também pelo navegador em qualquer dispositivo.</Text>
+  </KeyboardAvoidingView></SafeAreaView>
+}
 
 function Inicio({sessao,nome}:{sessao:Sessao;nome?:string}){const[lista,setLista]=useState<Agendamento[]>([]);const[busy,setBusy]=useState(true);const[erro,setErro]=useState('');useEffect(()=>{setBusy(true);setErro('');const rota=sessao.perfil==='CLIENTE'?`/agendamentos/cliente/${sessao.usuarioId}?page=0&size=50&sort=dataHoraInicio,asc`:sessao.perfil==='ADMINISTRADOR'?`/agendamentos/periodo?inicio=${dataHoje()}&fim=${dataMaisDias(7)}`:`/agendamentos/barbeiro/${sessao.usuarioId}/periodo?inicio=${dataHoje()}&fim=${dataMaisDias(7)}`;void requisitar<Agendamento[]|{content:Agendamento[]}>(rota,sessao).then(r=>setLista(Array.isArray(r)?r:r.content)).catch(e=>{setLista([]);setErro(e.message);Alert.alert('Não foi possível carregar a agenda',e.message)}).finally(()=>setBusy(false))},[sessao]);const proximos=lista.filter(a=>!['CONCLUIDO','CANCELADO_CLIENTE','CANCELADO_BARBEIRO','NAO_COMPARECEU'].includes(a.statusAgendamento));return <ScrollView contentContainerStyle={estilos.rolagem}><Text style={estilos.sobrelinha}>PAINEL {sessao.perfil}</Text><Text style={estilos.tituloSecao}>Olá, {nome?.split(' ')[0]||'bem-vindo'} 👋</Text><Text style={estilos.subtitulo}>Acompanhe sua agenda em um só lugar.</Text><View style={estilos.cartaoDestaque}><View style={estilos.iconeDestaque}><CalendarDays size={20} color="#c4b5fd"/></View><Text style={estilos.textoDestaque}>Próximos horários</Text><Text style={estilos.numeroDestaque}>{proximos.length}</Text><Text style={estilos.legendaDestaque}>agendamentos em aberto</Text></View><Text style={estilos.tituloCartao}>Agenda próxima</Text>{busy?<ActivityIndicator color="#a78bfa"/>:erro?<TextoVazio texto={erro}/>:proximos.length?proximos.slice(0,5).map(a=><CartaoMobile key={a.id}><View style={estilos.linhaCartao}><Clock3 size={16} color="#b69cf8"/><Text style={estilos.textoCartao}>{new Date(a.dataHoraInicio).toLocaleDateString('pt-BR')} · {new Date(a.dataHoraInicio).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</Text></View><Text style={estilos.textoPrincipal}>{a.servicoNome}</Text><Text style={estilos.textoSecundario}>{sessao.perfil==='CLIENTE'?`com ${a.barbeiroNome}`:`${a.clienteNome} · ${a.servicoDuracaoMinutos} min`}</Text></CartaoMobile>):<TextoVazio texto="Nenhum horário futuro encontrado."/>}</ScrollView>}
 
-async function mudarStatus(sessao:Sessao,a:Agendamento,acao:'nao-compareceu',atualizar:()=>void){try{await requisitar(`/agendamentos/${a.id}/${acao}`,sessao,{method:'PATCH'});atualizar()}catch(e){Alert.alert('Agendamento',e instanceof Error?e.message:'Não foi possível atualizar o status.')}}function Agenda({sessao}:{sessao:Sessao}){const[lista,setLista]=useState<Agendamento[]>([]);const[busy,setBusy]=useState(true);const[erro,setErro]=useState('');const[atualiza,setAtualiza]=useState(0);const[novo,setNovo]=useState(false);const[comanda,setComanda]=useState<Agendamento|null>(null);useEffect(()=>{setBusy(true);setErro('');const inicio=dataHoje();const fim=new Date();fim.setDate(fim.getDate()+7);const fimIso=`${fim.getFullYear()}-${String(fim.getMonth()+1).padStart(2,'0')}-${String(fim.getDate()).padStart(2,'0')}`;const rota=sessao.perfil==='CLIENTE'?`/agendamentos/cliente/${sessao.usuarioId}?page=0&size=100&sort=dataHoraInicio,desc`:sessao.perfil==='ADMINISTRADOR'?`/agendamentos/periodo?inicio=${inicio}&fim=${fimIso}`:`/agendamentos/barbeiro/${sessao.usuarioId}/periodo?inicio=${inicio}&fim=${fimIso}`;void requisitar<Agendamento[]|{content:Agendamento[]}>(rota,sessao).then(r=>setLista(Array.isArray(r)?r:r.content)).catch(e=>{const mensagem=e instanceof Error?e.message:'Não foi possível carregar os agendamentos.';setLista([]);setErro(mensagem);Alert.alert('Agenda',mensagem)}).finally(()=>setBusy(false))},[sessao,atualiza]);async function cancelar(a:Agendamento){try{await requisitar(`/agendamentos/${a.id}/cancelar/${sessao.perfil==='CLIENTE'?'cliente':'barbeiro'}`,sessao,{method:'PATCH'});setAtualiza(n=>n+1)}catch(e){Alert.alert('Não foi possível cancelar',e instanceof Error?e.message:'Falha na API')}}return <View style={estilos.flex}><View style={estilos.tituloLinha}><View><Text style={estilos.tituloSecao}>Agendamentos</Text><Text style={estilos.subtitulo}>Seus próximos horários</Text></View><Pressable style={estilos.botaoIcone} onPress={()=>setNovo(!novo)}><Text style={{color:'#e9ddff',fontSize:20}}>＋</Text></Pressable></View>{novo&&<NovoAgendamento sessao={sessao} fechar={()=>{setNovo(false);setAtualiza(n=>n+1)}}/>}{busy?<ActivityIndicator color="#a78bfa"/>:<FlatList data={lista} keyExtractor={a=>String(a.id)} contentContainerStyle={{paddingBottom:22}} ListEmptyComponent={<TextoVazio texto={erro||"Nenhum agendamento encontrado."}/>} renderItem={({item:a})=><CartaoMobile><View style={estilos.linhaCartao}><Clock3 size={15} color="#b69cf8"/><Text style={estilos.textoCartao}>{new Date(a.dataHoraInicio).toLocaleDateString('pt-BR')} · {new Date(a.dataHoraInicio).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</Text><Text style={estilos.tag}>{a.statusAgendamento.replaceAll('_',' ')}</Text></View><Text style={estilos.textoPrincipal}>{a.servicoNome}</Text><Text style={estilos.textoSecundario}>{sessao.perfil==='CLIENTE'?`Profissional: ${a.barbeiroNome}`:`Cliente: ${a.clienteNome}`}</Text><Text style={estilos.textoSecundario}>{moeda(a.servicoPreco)} · {a.servicoDuracaoMinutos} min</Text>{sessao.perfil==='CLIENTE'&&['AGENDADO','CONFIRMADO'].includes(a.statusAgendamento)&&<Pressable onPress={()=>void cancelar(a)}><Text style={estilos.linkCancelar}>Cancelar agendamento</Text></Pressable>}{sessao.perfil!=='CLIENTE'&&a.statusAgendamento==='CONCLUIDO'&&<Pressable onPress={()=>void mudarStatus(sessao,a,'nao-compareceu',()=>setAtualiza(n=>n+1))}><Text style={estilos.linkCancelar}>Não compareceu</Text></Pressable>}{sessao.perfil!=='CLIENTE'&&['AGENDADO','CONFIRMADO','EM_ANDAMENTO'].includes(a.statusAgendamento)&&<Pressable onPress={()=>setComanda(a)}><Text style={estilos.linkCancelar}>Fechar comanda</Text></Pressable>}</CartaoMobile>}/>}{comanda&&<FecharComandaMobile agendamento={comanda} sessao={sessao} fechar={()=>setComanda(null)} concluiu={()=>{setComanda(null);setAtualiza(n=>n+1)}}/>}</View>}
+async function mudarStatus(sessao:Sessao,a:Agendamento,acao:'nao-compareceu',atualizar:()=>void){try{await requisitar(`/agendamentos/${a.id}/${acao}`,sessao,{method:'PATCH'});atualizar()}catch(e){Alert.alert('Agendamento',e instanceof Error?e.message:'Não foi possível atualizar o status.')}}function Agenda({sessao}:{sessao:Sessao}){const[lista,setLista]=useState<Agendamento[]>([]);const[busy,setBusy]=useState(true);const[erro,setErro]=useState('');const[atualiza,setAtualiza]=useState(0);const[novo,setNovo]=useState(false);const[comanda,setComanda]=useState<Agendamento|null>(null);const[historico,setHistorico]=useState<Agendamento|null>(null);useEffect(()=>{setBusy(true);setErro('');const inicio=dataHoje();const fim=new Date();fim.setDate(fim.getDate()+7);const fimIso=`${fim.getFullYear()}-${String(fim.getMonth()+1).padStart(2,'0')}-${String(fim.getDate()).padStart(2,'0')}`;const rota=sessao.perfil==='CLIENTE'?`/agendamentos/cliente/${sessao.usuarioId}?page=0&size=100&sort=dataHoraInicio,desc`:sessao.perfil==='ADMINISTRADOR'?`/agendamentos/periodo?inicio=${inicio}&fim=${fimIso}`:`/agendamentos/barbeiro/${sessao.usuarioId}/periodo?inicio=${inicio}&fim=${fimIso}`;void requisitar<Agendamento[]|{content:Agendamento[]}>(rota,sessao).then(r=>setLista(Array.isArray(r)?r:r.content)).catch(e=>{const mensagem=e instanceof Error?e.message:'Não foi possível carregar os agendamentos.';setLista([]);setErro(mensagem);Alert.alert('Agenda',mensagem)}).finally(()=>setBusy(false))},[sessao,atualiza]);async function cancelar(a:Agendamento){try{await requisitar(`/agendamentos/${a.id}/cancelar/${sessao.perfil==='CLIENTE'?'cliente':'barbeiro'}`,sessao,{method:'PATCH'});setAtualiza(n=>n+1)}catch(e){Alert.alert('Não foi possível cancelar',e instanceof Error?e.message:'Falha na API')}}return <View style={estilos.flex}><View style={estilos.tituloLinha}><View><Text style={estilos.tituloSecao}>Agendamentos</Text><Text style={estilos.subtitulo}>Seus próximos horários</Text></View><Pressable style={estilos.botaoIcone} onPress={()=>setNovo(!novo)}><Text style={{color:'#e9ddff',fontSize:20}}>＋</Text></Pressable></View>{novo&&<NovoAgendamento sessao={sessao} fechar={()=>{setNovo(false);setAtualiza(n=>n+1)}}/>}{busy?<ActivityIndicator color="#a78bfa"/>:<FlatList data={lista} keyExtractor={a=>String(a.id)} contentContainerStyle={{paddingBottom:22}} ListEmptyComponent={<TextoVazio texto={erro||"Nenhum agendamento encontrado."}/>} renderItem={({item:a})=><CartaoMobile><View style={estilos.linhaCartao}><Clock3 size={15} color="#b69cf8"/><Text style={estilos.textoCartao}>{new Date(a.dataHoraInicio).toLocaleDateString('pt-BR')} · {new Date(a.dataHoraInicio).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</Text><Text style={estilos.tag}>{a.statusAgendamento.replaceAll('_',' ')}</Text></View><Text style={estilos.textoPrincipal}>#{a.id} · {a.servicoNome}</Text><Text style={estilos.textoSecundario}>{sessao.perfil==='CLIENTE'?`Profissional: ${a.barbeiroNome}`:`Cliente: ${a.clienteNome}`}</Text><Text style={estilos.textoSecundario}>{moeda(a.servicoPreco)} · {a.servicoDuracaoMinutos} min</Text>{sessao.perfil==='CLIENTE'&&['AGENDADO','CONFIRMADO'].includes(a.statusAgendamento)&&<Pressable onPress={()=>void cancelar(a)}><Text style={estilos.linkCancelar}>Cancelar agendamento</Text></Pressable>}{sessao.perfil!=='CLIENTE'&&a.statusAgendamento==='CONCLUIDO'&&<Pressable onPress={()=>void mudarStatus(sessao,a,'nao-compareceu',()=>setAtualiza(n=>n+1))}><Text style={estilos.linkCancelar}>Não compareceu</Text></Pressable>}{sessao.perfil!=='CLIENTE'&&['AGENDADO','CONFIRMADO','EM_ANDAMENTO'].includes(a.statusAgendamento)&&<Pressable onPress={()=>setComanda(a)}><Text style={estilos.linkCancelar}>Fechar comanda</Text></Pressable>}<Pressable onPress={()=>setHistorico(a)}><Text style={estilos.linkCancelar}>Histórico</Text></Pressable></CartaoMobile>}/>}{historico&&<HistoricoMobile agendamento={historico} sessao={sessao} fechar={()=>setHistorico(null)}/>} {comanda&&<FecharComandaMobile agendamento={comanda} sessao={sessao} fechar={()=>setComanda(null)} concluiu={()=>{setComanda(null);setAtualiza(n=>n+1)}}/>}</View>}
 
+
+
+type EventoAgenda = {
+  id: number; tipoEvento: string; registradoEm: string; servicoNome: string
+  servicoAdicionalNome?: string; formaPagamento?: string; valorTotalComanda?: number
+}
+type LinhaComissao = {
+  comissaoId: number; agendamentoId: number; servicoNome: string; concluidoEm: string
+  valorServico: number; barbeiroNome?: string; valorBarbeiro?: number; valorComissao?: number
+}
+type RelatorioComissao = {
+  detalhes: LinhaComissao[]; valorTotalServicos: number
+  valorTotalComissoesBarbeiros?: number; valorComissaoGerada?: number
+}
+
+function HistoricoMobile({ agendamento, sessao, fechar }: {
+  agendamento: Agendamento; sessao: Sessao; fechar: () => void
+}) {
+  const [eventos, setEventos] = useState<EventoAgenda[] | null>(null)
+  const [erro, setErro] = useState('')
+  const [tentativa, setTentativa] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    setEventos(null)
+    setErro('')
+    void requisitar<EventoAgenda[]>(`/agendamentos/${agendamento.id}/historico`, sessao, { signal: controller.signal })
+      .then(lista => { if (!controller.signal.aborted) setEventos(lista) })
+      .catch(falha => { if (!controller.signal.aborted) setErro(falha.message) })
+    return () => controller.abort()
+  }, [agendamento.id, sessao, tentativa])
+
+  return <Modal animationType="slide" onRequestClose={fechar}>
+    <SafeAreaView style={estilos.app}>
+      <ScrollView contentContainerStyle={estilos.rolagem}>
+        <Text style={estilos.tituloSecao}>Histórico do atendimento</Text>
+        <Text style={estilos.subtitulo}>#{agendamento.id} · {agendamento.clienteNome}</Text>
+        <Pressable style={estilos.botaoSecundario} onPress={fechar}><Text style={estilos.textoBotao}>Voltar</Text></Pressable>
+        {erro ? <><TextoVazio texto={erro}/><Pressable style={estilos.botaoSecundario} onPress={() => setTentativa(n => n + 1)}><Text style={estilos.textoBotao}>Tentar novamente</Text></Pressable></> :
+          eventos === null ? <ActivityIndicator color="#a78bfa"/> :
+          eventos.length === 0 ? <TextoVazio texto="Nenhum evento registrado."/> :
+          eventos.map(evento => <CartaoMobile key={evento.id}>
+            <Text style={estilos.textoPrincipal}>{evento.tipoEvento.replaceAll('_', ' ')}</Text>
+            <Text style={estilos.textoSecundario}>{new Date(evento.registradoEm).toLocaleString('pt-BR')}</Text>
+            <Text style={estilos.textoSecundario}>{evento.servicoNome}{evento.servicoAdicionalNome ? ' + ' + evento.servicoAdicionalNome : ''}</Text>
+            {evento.valorTotalComanda != null && <Text style={estilos.textoPrincipal}>{evento.formaPagamento} · {moeda(evento.valorTotalComanda)}</Text>}
+          </CartaoMobile>)}
+      </ScrollView>
+    </SafeAreaView>
+  </Modal>
+}
+
+function ComissoesMobile({ sessao }: { sessao: Sessao }) {
+  const [inicio, setInicio] = useState(dataHoje)
+  const [fim, setFim] = useState(dataHoje)
+  const [busca, setBusca] = useState(() => ({ inicio, fim }))
+  const [relatorio, setRelatorio] = useState<RelatorioComissao | null>(null)
+  const [erro, setErro] = useState('')
+  const [erroPeriodo, setErroPeriodo] = useState('')
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const perfil = sessao.perfil === 'ADMINISTRADOR' ? 'administrador' : 'meu'
+    setErro('')
+    setRelatorio(null)
+    setCarregando(true)
+    const parametros = new URLSearchParams(busca)
+    void requisitar<RelatorioComissao>(`/comissoes/relatorio-periodo/${perfil}?${parametros}`, sessao, { signal: controller.signal })
+      .then(dados => { if (!controller.signal.aborted) setRelatorio(dados) })
+      .catch(falha => { if (!controller.signal.aborted) setErro(falha.message) })
+      .finally(() => { if (!controller.signal.aborted) setCarregando(false) })
+    return () => controller.abort()
+  }, [busca, sessao])
+
+  function consultar() {
+    const formato = /^\d{4}-\d{2}-\d{2}$/
+    if (!formato.test(inicio) || !formato.test(fim) || inicio > fim) {
+      setErroPeriodo('Informe um período válido no formato AAAA-MM-DD.')
+      return
+    }
+    setErroPeriodo('')
+    setBusca({ inicio, fim })
+  }
+
+  return <ScrollView contentContainerStyle={estilos.rolagem}>
+    <Text style={estilos.tituloSecao}>Comissões</Text>
+    <Text style={estilos.rotulo}>Data inicial (AAAA-MM-DD)</Text>
+    <TextInput accessibilityLabel="Data inicial" style={estilos.entrada} value={inicio} onChangeText={setInicio}/>
+    <Text style={estilos.rotulo}>Data final (AAAA-MM-DD)</Text>
+    <TextInput accessibilityLabel="Data final" style={estilos.entrada} value={fim} onChangeText={setFim}/>
+    {!!erroPeriodo && <Text accessibilityRole="alert" style={estilos.textoSecundario}>{erroPeriodo}</Text>}
+    <Pressable disabled={carregando} style={estilos.botao} onPress={consultar}><Text style={estilos.textoBotao}>Consultar</Text></Pressable>
+    {carregando && <ActivityIndicator color="#a78bfa"/>}
+    {!!erro && <TextoVazio texto={erro}/>}
+    {relatorio && <>
+      <CartaoMobile>
+        <Text style={estilos.textoSecundario}>Serviços · {moeda(relatorio.valorTotalServicos)}</Text>
+        <Text style={estilos.textoPrincipal}>Comissões · {moeda(relatorio.valorTotalComissoesBarbeiros ?? relatorio.valorComissaoGerada ?? 0)}</Text>
+      </CartaoMobile>
+      {relatorio.detalhes.length === 0 && <TextoVazio texto="Nenhuma comissão no período."/>}
+      {relatorio.detalhes.map(linha => <CartaoMobile key={linha.comissaoId}>
+        <Text style={estilos.textoPrincipal}>#{linha.agendamentoId} · {linha.servicoNome}</Text>
+        <Text style={estilos.textoSecundario}>{new Date(linha.concluidoEm).toLocaleString('pt-BR')}{linha.barbeiroNome ? ' · ' + linha.barbeiroNome : ''}</Text>
+        <Text style={estilos.textoSecundario}>Serviço {moeda(linha.valorServico)} · Comissão {moeda(linha.valorBarbeiro ?? linha.valorComissao ?? 0)}</Text>
+      </CartaoMobile>)}
+    </>}
+  </ScrollView>
+}
 
 const formasPagamento = [
   { valor: 'PIX', rotulo: 'PIX' },

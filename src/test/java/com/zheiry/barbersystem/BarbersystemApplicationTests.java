@@ -1,12 +1,11 @@
 package com.zheiry.barbersystem;
 
+import com.zheiry.barbersystem.config.PostgresTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@ActiveProfiles("test")
-class BarbersystemApplicationTests {
+class BarbersystemApplicationTests extends PostgresTestBase {
 
 	@Test
 	void contextLoads() {

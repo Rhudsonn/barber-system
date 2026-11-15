@@ -36,6 +36,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.staging.example
 
 # Artefatos locais de build
 /.tmp-build/

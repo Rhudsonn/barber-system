@@ -18,11 +18,12 @@ public record BarbeariaAtualizaDto(
         @Size(max = 20, message = "Telefone deve ter no máximo 20 caracteres.")
         String telefone,
 
-        @Size(max = 20, message = "WhatsApp deve ter no máximo 20 caracteres.")
-        String whatsapp,
-
         @Size(max = 2048, message = "O link do Instagram deve ter no máximo 2048 caracteres.")
         String instagram,
+
+        @Size(max = 25, message = "O WhatsApp deve ter no máximo 25 caracteres.")
+        @Pattern(regexp = "[+0-9() .-]*", message = "Informe um número de WhatsApp válido.")
+        String whatsapp,
 
         @Pattern(regexp = "(?s).*\\S.*", message = "E-mail não pode ficar em branco.")
         @Email(message = "E-mail inválido.")

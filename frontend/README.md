@@ -73,7 +73,27 @@ O app mobile cobre login, consulta e criação/cancelamento de agendamentos, ser
 
 ## Validação
 
+### Fechar uma comanda em um celular Android físico
+
+O roteiro abaixo usa um PostgreSQL descartável, uma API de teste e o Expo Go. Instale uma versão do Expo Go compatível com o SDK 52, inicie o Docker Desktop e conecte o celular e o computador à mesma rede Wi-Fi. Use `ipconfig` para encontrar o IPv4 da conexão Wi-Fi do computador.
+
+No PowerShell, a partir da raiz do projeto, instale as dependências e inicie o teste. Troque o IP do exemplo pelo seu.
+
+```powershell
+npm --prefix frontend/mobile ci
+powershell -NoProfile -ExecutionPolicy Bypass -File .\frontend\mobile\testar-android.ps1 -IpComputador 192.168.1.100
+```
+
+Se o celular não alcançar o computador, confira a rede e o acesso às portas TCP 8081 (Metro) e 18080 (API) no perfil privado do Windows. O script imprime a URL da API e as credenciais sintéticas. Ao encerrar o Expo com Ctrl+C, a API e o banco descartável são encerrados.
+
+1. Abra o QR code pelo Expo Go e entre com a conta de teste exibida no terminal.
+2. Na **Agenda**, localize **#61 · Corte QA**, abra **Fechar comanda**, selecione **PIX** e **Barba QA**, e confirme. Confira se a agenda mostra **CONCLUIDO**.
+3. Abra **Histórico** no mesmo atendimento. O evento de conclusão deve mostrar os dois serviços, PIX e **R$ 60,00**.
+4. Abra **Comissões** e consulte a data do fechamento. O atendimento **#61** deve aparecer em dois lançamentos, com **R$ 20,00** de comissão no corte e **R$ 10,00** na barba.
+
+O histórico segue o acesso ao atendimento. A aba de comissões aparece para barbeiros e administradores. O barbeiro vê os próprios lançamentos, e o administrador vê o relatório geral.
+
 - Web: `npm run build`
 - Mobile: `npm run typecheck`
-- Backend e migration: `./mvnw.cmd test` na raiz; testes automatizados usam H2 temporário.
+- Backend e migrations: `./mvnw.cmd test` na raiz, com Docker em execução; os testes usam PostgreSQL temporário via Testcontainers.
 - A validação ponta a ponta deve usar contas e dados sintéticos no PostgreSQL local, nunca dados de produção.

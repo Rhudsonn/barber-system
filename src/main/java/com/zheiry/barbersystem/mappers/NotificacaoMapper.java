@@ -5,6 +5,7 @@ import com.zheiry.barbersystem.dto.notificacao.PreferenciaNotificacaoAtualizaDto
 import com.zheiry.barbersystem.dto.notificacao.PreferenciaNotificacaoSaidaDto;
 import com.zheiry.barbersystem.entities.ClienteEntity;
 import com.zheiry.barbersystem.entities.NotificacaoEntity;
+import com.zheiry.barbersystem.enums.CanalNotificacao;
 
 import java.util.List;
 
@@ -12,11 +13,12 @@ public final class NotificacaoMapper {
     private NotificacaoMapper() { }
 
     public static PreferenciaNotificacaoSaidaDto paraPreferencia(ClienteEntity cliente) {
-        return new PreferenciaNotificacaoSaidaDto(cliente.getCanalNotificacao(), cliente.isNotificacoesAutorizadas());
+        // Old preference values remain in the database, but the application now supports e-mail only.
+        return new PreferenciaNotificacaoSaidaDto(CanalNotificacao.EMAIL, cliente.isNotificacoesAutorizadas());
     }
 
     public static void atualizarPreferencia(PreferenciaNotificacaoAtualizaDto dto, ClienteEntity cliente) {
-        cliente.setCanalNotificacao(dto.canal());
+        cliente.setCanalNotificacao(CanalNotificacao.EMAIL.name());
         cliente.setNotificacoesAutorizadas(dto.autorizada());
     }
 

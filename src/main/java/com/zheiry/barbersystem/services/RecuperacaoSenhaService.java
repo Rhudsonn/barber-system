@@ -11,9 +11,6 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -39,10 +36,9 @@ public class RecuperacaoSenhaService {
     private final BarbeiroRepository barbeiroRepository;
     private final ClienteRepository clienteRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
-    private final JavaMailSender mailSender;
+    private final ResendEmailService resendEmailService;
     private final SecureRandom secureRandom = new SecureRandom();
     private final String urlRedefinicao;
-    private final String emailRemetente;
     private final long validadeMinutos;
     private final Clock relogio;
 
@@ -51,9 +47,8 @@ public class RecuperacaoSenhaService {
                                    BarbeiroRepository barbeiroRepository,
                                    ClienteRepository clienteRepository,
                                    org.springframework.security.crypto.password.PasswordEncoder passwordEncoder,
-                                   JavaMailSender mailSender,
+                                   ResendEmailService resendEmailService,
                                    @Value("${app.password-reset-url}") String urlRedefinicao,
-                                   @Value("${app.password-reset-from:no-reply@barbearia.local}") String emailRemetente,
                                    @Value("${app.password-reset-expiration-minutes:15}") long validadeMinutos,
                                    Clock relogio) {
         this.recuperacaoRepository = recuperacaoRepository;
@@ -61,9 +56,8 @@ public class RecuperacaoSenhaService {
         this.barbeiroRepository = barbeiroRepository;
         this.clienteRepository = clienteRepository;
         this.passwordEncoder = passwordEncoder;
-        this.mailSender = mailSender;
+        this.resendEmailService = resendEmailService;
         this.urlRedefinicao = urlRedefinicao;
-        this.emailRemetente = emailRemetente;
         this.validadeMinutos = validadeMinutos;
         this.relogio = relogio;
         if (validadeMinutos <= 0) {
@@ -74,18 +68,31 @@ public class RecuperacaoSenhaService {
     @Transactional
     public RecuperacaoSenhaSaidaDto solicitar(String emailInformado) {
         String email = emailInformado.trim();
-        recuperacaoRepository.deleteByEmailIgnoreCase(email);
-
         Optional<ContaRecuperacao> conta = localizarConta(email);
         if (conta.isPresent() && conta.get().status() == Status.ATIVO) {
-            emitirToken(conta.get());
+            bloquearConta(conta.get())
+                    .filter(contaBloqueada -> contaBloqueada.status() == Status.ATIVO
+                            && contaBloqueada.email().equalsIgnoreCase(email))
+                    .ifPresent(this::emitirToken);
         }
         return new RecuperacaoSenhaSaidaDto(MENSAGEM_GENERICA);
     }
 
     @Transactional
     public void redefinir(RecuperacaoSenhaRedefinirDto dto) {
-        RecuperacaoSenhaEntity recuperacao = recuperacaoRepository.findByTokenHash(hashToken(dto.token()))
+        String tokenHash = hashToken(dto.token());
+        RecuperacaoSenhaEntity tokenEncontrado = recuperacaoRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new BadRequestException(MENSAGEM_TOKEN_INVALIDO));
+
+        ContaRecuperacao contaBloqueada = bloquearConta(new ContaRecuperacao(tokenEncontrado.getUsuarioId(),
+                        tokenEncontrado.getEmail(), tokenEncontrado.getNivelAcesso(), Status.ATIVO))
+                .filter(conta -> conta.status() == Status.ATIVO)
+                .orElseThrow(() -> new BadRequestException(MENSAGEM_TOKEN_INVALIDO));
+
+        // Releitura após adquirir o lock da conta: outra redefinição pode ter consumido o token enquanto aguardávamos.
+        RecuperacaoSenhaEntity recuperacao = recuperacaoRepository.findByTokenHashForUpdate(tokenHash)
+                .filter(token -> token.getUsuarioId().equals(contaBloqueada.id())
+                        && token.getNivelAcesso() == contaBloqueada.nivelAcesso())
                 .orElseThrow(() -> new BadRequestException(MENSAGEM_TOKEN_INVALIDO));
 
         if (!recuperacao.getExpiraEm().isAfter(LocalDateTime.now(relogio))) {
@@ -102,7 +109,19 @@ public class RecuperacaoSenhaService {
         }
 
         salvarNovaSenha(recuperacao, passwordEncoder.encode(dto.novaSenha()));
-        recuperacaoRepository.deleteByEmailIgnoreCase(recuperacao.getEmail());
+        // Invalida todos os links dessa conta, mesmo se o e-mail tiver mudado desde a emissão.
+        recuperacaoRepository.deleteByNivelAcessoAndUsuarioId(recuperacao.getNivelAcesso(), recuperacao.getUsuarioId());
+    }
+
+    private Optional<ContaRecuperacao> bloquearConta(ContaRecuperacao candidata) {
+        return switch (candidata.nivelAcesso()) {
+            case ADMINISTRADOR -> administradorRepository.findByIdForUpdate(candidata.id())
+                    .map(conta -> new ContaRecuperacao(conta.getId(), conta.getEmail(), NivelAcesso.ADMINISTRADOR, conta.getStatus()));
+            case BARBEIRO -> barbeiroRepository.findByIdForUpdate(candidata.id())
+                    .map(conta -> new ContaRecuperacao(conta.getId(), conta.getEmail(), NivelAcesso.BARBEIRO, conta.getStatus()));
+            case CLIENTE -> clienteRepository.findByIdForUpdate(candidata.id())
+                    .map(conta -> new ContaRecuperacao(conta.getId(), conta.getEmail(), NivelAcesso.CLIENTE, conta.getStatus()));
+        };
     }
 
     private Optional<ContaRecuperacao> localizarConta(String email) {
@@ -134,17 +153,13 @@ public class RecuperacaoSenhaService {
         recuperacaoRepository.save(recuperacao);
 
         String link = UriComponentsBuilder.fromUriString(urlRedefinicao)
-                .queryParam("token", token).build().encode().toUriString();
-        SimpleMailMessage mensagem = new SimpleMailMessage();
-        mensagem.setFrom(emailRemetente);
-        mensagem.setTo(conta.email());
-        mensagem.setSubject("Redefinição de senha");
-        mensagem.setText("Use o link a seguir para redefinir sua senha. Ele expira em "
-                + validadeMinutos + " minutos e só pode ser usado uma vez:\n\n" + link);
-
+                .fragment("token=" + token).build().encode().toUriString();
         try {
-            mailSender.send(mensagem);
-        } catch (MailException e) {
+            resendEmailService.enviarEmail(conta.email(), "Redefinição de senha",
+                    "Use o link a seguir para redefinir sua senha. Ele expira em "
+                            + validadeMinutos + " minutos e só pode ser usado uma vez:\n\n" + link,
+                    "recuperacao-senha:" + recuperacao.getId());
+        } catch (com.zheiry.barbersystem.exception.FalhaEnvioNotificacaoException e) {
             recuperacaoRepository.delete(recuperacao);
             logger.warn("Não foi possível enviar o e-mail de recuperação de senha.");
         }

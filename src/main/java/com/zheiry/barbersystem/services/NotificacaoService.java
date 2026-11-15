@@ -13,6 +13,7 @@ import com.zheiry.barbersystem.entities.NotificacaoEntity;
 import com.zheiry.barbersystem.enums.CanalNotificacao;
 import com.zheiry.barbersystem.enums.StatusAgendamento;
 import com.zheiry.barbersystem.enums.StatusNotificacao;
+import com.zheiry.barbersystem.enums.Status;
 import com.zheiry.barbersystem.enums.TipoNotificacao;
 import com.zheiry.barbersystem.exception.BadRequestException;
 import com.zheiry.barbersystem.exception.ResourceNotFoundException;
@@ -29,14 +30,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
 @Service
 public class NotificacaoService {
-    private static final List<TipoNotificacao> TIPOS_LEMBRETE = List.of(
-            TipoNotificacao.LEMBRETE_24H, TipoNotificacao.LEMBRETE_1H, TipoNotificacao.LEMBRETE_30MIN);
+    private static final List<TipoNotificacao> TIPOS_LEMBRETE = List.of(TipoNotificacao.LEMBRETE_2H);
     private static final String PREFERENCIA_DESATIVADA = "Preferência de notificações desativada pelo cliente.";
     private final NotificacaoRepository notificacaoRepository;
     private final ClienteRepository clienteRepository;
@@ -74,7 +75,7 @@ public class NotificacaoService {
                 notificacao.setStatus(StatusNotificacao.CANCELADA);
                 notificacao.setErroSeguro(PREFERENCIA_DESATIVADA);
             } else {
-                notificacao.setCanal(dto.canal());
+                notificacao.setCanal(CanalNotificacao.EMAIL.name());
                 notificacao.setDestinatario(destinatario);
             }
             notificacaoRepository.save(notificacao);
@@ -99,7 +100,7 @@ public class NotificacaoService {
     }
 
     public EstadoIntegracoesNotificacaoDto estadoIntegracoes() {
-        return new EstadoIntegracoesNotificacaoDto(configuracao.estadoResend(), configuracao.estadoWhatsApp());
+        return new EstadoIntegracoesNotificacaoDto(configuracao.estadoResend());
     }
 
     @Transactional
@@ -125,6 +126,38 @@ public class NotificacaoService {
         cancelarLembretes(agendamento.getId(), "Horário alterado; lembrete antigo invalidado.");
         criarNotificacao(agendamento, TipoNotificacao.CONFIRMACAO, agora(), agendamento.getDataHoraInicio());
         programarLembretes(agendamento);
+    }
+
+    @Transactional
+    public void revisarLembretesFuturos() {
+        LocalDateTime agora = agora();
+        for (AgendamentoEntity agendamento : agendamentoRepository.findByDataHoraInicioAfterAndStatusAgendamentoIn(
+                agora, List.of(StatusAgendamento.AGENDADO, StatusAgendamento.CONFIRMADO))) {
+            programarLembretes(agendamento);
+        }
+    }
+
+    @Transactional
+    public void programarAniversariantes() {
+        LocalDate hoje = LocalDate.now(relogio);
+        LocalDateTime envio = hoje.atTime(9, 0);
+        for (ClienteEntity cliente : clienteRepository.buscarAniversariantes(Status.ATIVO, hoje.getMonthValue(), hoje.getDayOfMonth())) {
+            if (cliente.getEmail() == null || cliente.getEmail().isBlank()) continue;
+            String chave = "cliente:" + cliente.getId() + ":ANIVERSARIO:" + hoje.getYear();
+            if (notificacaoRepository.findByChaveIdempotencia(chave).isPresent()) continue;
+            NotificacaoEntity notificacao = new NotificacaoEntity();
+            notificacao.setClienteId(cliente.getId());
+            notificacao.setTipo(TipoNotificacao.ANIVERSARIO);
+            notificacao.setCanal(CanalNotificacao.EMAIL.name());
+            notificacao.setChaveIdempotencia(chave);
+            notificacao.setDestinatario(cliente.getEmail());
+            notificacao.setNomeCliente(cliente.getNome());
+            notificacao.setNomeBarbearia(barbeariaRepository.findFirstByOrderByIdAsc().map(b -> b.getNomeFantasia()).orElse("Barbearia"));
+            notificacao.setDataHoraAgendamento(envio);
+            notificacao.setProgramadaPara(envio.isAfter(agora()) ? envio : agora());
+            notificacao.setCriadaEm(agora());
+            notificacaoRepository.save(notificacao);
+        }
     }
 
     @Transactional
@@ -164,6 +197,14 @@ public class NotificacaoService {
     }
 
     @Transactional
+    public void cancelarCanalDesativado(Long id) {
+        NotificacaoEntity notificacao = notificacaoRepository.findById(id).orElseThrow();
+        notificacao.setStatus(StatusNotificacao.CANCELADA);
+        notificacao.setErroSeguro("Canal de notificação desativado.");
+        notificacaoRepository.save(notificacao);
+    }
+
+    @Transactional
     public void registrarFalha(Long id, String mensagemSegura, boolean retentavel, LocalDateTime agora) {
         NotificacaoEntity notificacao = notificacaoRepository.findById(id).orElseThrow();
         notificacao.setErroSeguro(mensagemSegura.length() > 500 ? mensagemSegura.substring(0, 500) : mensagemSegura);
@@ -180,23 +221,22 @@ public class NotificacaoService {
     }
 
     private void programarLembretes(AgendamentoEntity agendamento) {
-        if (agendamento.getCliente() == null) return;
+        if (!possuiEmail(agendamento.getCliente())) return;
         LocalDateTime inicio = agendamento.getDataHoraInicio();
-        criarLembrete(agendamento, TipoNotificacao.LEMBRETE_24H, inicio.minusHours(24));
-        criarLembrete(agendamento, TipoNotificacao.LEMBRETE_1H, inicio.minusHours(1));
-        criarLembrete(agendamento, TipoNotificacao.LEMBRETE_30MIN, inicio.minusMinutes(30));
+        criarLembrete(agendamento, TipoNotificacao.LEMBRETE_2H, inicio.minusHours(2));
     }
 
     private void criarLembrete(AgendamentoEntity agendamento, TipoNotificacao tipo, LocalDateTime programada) {
         NotificacaoEntity existente = notificacaoRepository.findByChaveIdempotencia(chave(agendamento, tipo)).orElse(null);
         if (existente != null) {
-            if (existente.getStatus() == StatusNotificacao.CANCELADA && PREFERENCIA_DESATIVADA.equals(existente.getErroSeguro())
-                    && programada.isAfter(agora()) && agendamento.getCliente().isNotificacoesAutorizadas()) {
+            if (existente.getStatus() == StatusNotificacao.CANCELADA
+                    && existente.getErroSeguro() != null && existente.getErroSeguro().contains("passado")
+                    && programada.isAfter(agora())) {
                 existente.setStatus(StatusNotificacao.PENDENTE);
                 existente.setProgramadaPara(programada);
                 existente.setErroSeguro(null);
                 existente.setQuantidadeTentativas(0);
-                preencherDestinatarioAtual(existente, agendamento.getCliente());
+                existente.setDestinatario(agendamento.getCliente().getEmail());
                 notificacaoRepository.save(existente);
             }
             return;
@@ -216,19 +256,18 @@ public class NotificacaoService {
 
     private NotificacaoEntity criarNotificacao(AgendamentoEntity agendamento, TipoNotificacao tipo,
                                                 LocalDateTime programada, LocalDateTime dataHoraAtendimento) {
-        if (agendamento.getCliente() == null) return null;
+        if (!possuiEmail(agendamento.getCliente())) return null;
         String chaveIdempotencia = chave(agendamento, tipo);
         NotificacaoEntity existente = notificacaoRepository.findByChaveIdempotencia(chaveIdempotencia).orElse(null);
         if (existente != null) return existente;
         ClienteEntity cliente = agendamento.getCliente();
-        if (!cliente.isNotificacoesAutorizadas() || cliente.getCanalNotificacao() == null) return null;
         NotificacaoEntity notificacao = new NotificacaoEntity();
         notificacao.setClienteId(cliente.getId());
         notificacao.setAgendamentoId(agendamento.getId());
         notificacao.setTipo(tipo);
-        notificacao.setCanal(cliente.getCanalNotificacao());
+        notificacao.setCanal(CanalNotificacao.EMAIL.name());
         notificacao.setChaveIdempotencia(chaveIdempotencia);
-        notificacao.setDestinatario(obterDestinatario(cliente, cliente.getCanalNotificacao()));
+        notificacao.setDestinatario(cliente.getEmail());
         notificacao.setNomeCliente(cliente.getNome());
         notificacao.setNomeBarbearia(barbeariaRepository.findFirstByOrderByIdAsc()
                 .map(b -> b.getNomeFantasia()).orElse(""));
@@ -254,8 +293,8 @@ public class NotificacaoService {
     }
 
     private void preencherDestinatarioAtual(NotificacaoEntity notificacao, ClienteEntity cliente) {
-        notificacao.setCanal(cliente.getCanalNotificacao());
-        notificacao.setDestinatario(obterDestinatario(cliente, cliente.getCanalNotificacao()));
+        notificacao.setCanal(CanalNotificacao.EMAIL.name());
+        notificacao.setDestinatario(cliente.getEmail());
         if (notificacao.getDestinatario() == null || notificacao.getDestinatario().isBlank()) {
             notificacao.setStatus(StatusNotificacao.FALHA);
             notificacao.setErroSeguro("Contato do canal selecionado está ausente.");
@@ -263,17 +302,17 @@ public class NotificacaoService {
     }
 
     private void validarContato(ClienteEntity cliente, CanalNotificacao canal) {
-        if (canal == CanalNotificacao.EMAIL && (cliente.getEmail() == null || cliente.getEmail().isBlank())) {
+        if (cliente.getEmail() == null || cliente.getEmail().isBlank()) {
             throw new BadRequestException("Cadastre um e-mail para selecionar este canal.");
-        }
-        if (canal == CanalNotificacao.WHATSAPP && (cliente.getTelefone() == null || cliente.getTelefone().isBlank())) {
-            throw new BadRequestException("Cadastre um telefone para selecionar este canal.");
         }
     }
 
     private String obterDestinatario(ClienteEntity cliente, CanalNotificacao canal) {
-        if (canal == null) return null;
-        return canal == CanalNotificacao.EMAIL ? cliente.getEmail() : cliente.getTelefone();
+        return cliente.getEmail();
+    }
+
+    private boolean possuiEmail(ClienteEntity cliente) {
+        return cliente != null && cliente.getEmail() != null && !cliente.getEmail().isBlank();
     }
 
     private ClienteEntity clienteAutenticado() {

@@ -2,6 +2,7 @@ package com.zheiry.barbersystem.services;
 
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaAtualizaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaDto;
+import com.zheiry.barbersystem.dto.barbearia.BarbeariaPublicaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeariaEntity;
 import com.zheiry.barbersystem.exception.DuplicateResourceException;
@@ -49,7 +50,14 @@ public class BarbeariaService {
     }
 
     @Transactional
-    public BarbeariaSaidaDto buscarPrincipal() {
+    public BarbeariaPublicaDto buscarPrincipal() {
+        BarbeariaEntity entity = repository.findFirstByOrderByIdAsc()
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma barbearia cadastrada."));
+        return BarbeariaMapper.toPublicaDto(entity);
+    }
+
+    @Transactional
+    public BarbeariaSaidaDto buscarPrincipalAdministrativa() {
         BarbeariaEntity entity = repository.findFirstByOrderByIdAsc()
                 .orElseThrow(() -> new ResourceNotFoundException("Nenhuma barbearia cadastrada."));
         entity.getHorarios().size();

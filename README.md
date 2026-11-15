@@ -5,7 +5,7 @@ Sistema de agendamento com API Spring Boot, frontend React/Vite e app Expo/React
 ## Banco de dados Supabase
 
 1. Configure `DB_URL`, `DB_USERNAME` e `DB_PASSWORD` no `.env` a partir do `.env.example`; mantenha credenciais reais somente no `.env`, que não é versionado. `JWT_SECRET` deve ser texto aleatório com pelo menos 32 bytes.
-2. Inicie a API. Flyway aplicará migrations em `src/main/resources/db/migration`; depois Hibernate verificará o schema com `ddl-auto=validate`.
+2. Em ambiente local, habilite Flyway explicitamente quando for necessário aplicar migrations em `src/main/resources/db/migration`; em staging e produção Flyway permanece desligado e Hibernate valida o schema com `ddl-auto=validate`.
 
 No banco vazio, configure também `BOOTSTRAP_ADMIN_ENABLED=true`, `BOOTSTRAP_ADMIN_NOME`, `BOOTSTRAP_ADMIN_TELEFONE`, `BOOTSTRAP_ADMIN_EMAIL` e `BOOTSTRAP_ADMIN_PASSWORD` na configuração do IntelliJ (senha com pelo menos 12 caracteres). A API cria o administrador inicial apenas se não houver nenhum. Depois faça login na web e cadastre a barbearia em **Sobre**; configure horários e serviços. O bootstrap permanece desativado por padrão.
 
@@ -42,7 +42,7 @@ Para conferir o build web, rode `npm run build` em `frontend/web`.
 O passo a passo completo de instalação do Android Studio/AVD, Expo Go, variáveis de ambiente e execução está em [frontend/README.md](frontend/README.md#aplicativo-mobile-android). A API e o PostgreSQL devem estar rodando; no emulador, o app aponta para `http://10.0.2.2:8080`.
 ## Testes
 
-A maioria dos testes usa H2 temporário. Rode `./mvnw.cmd test` na raiz. Com o Docker em execução, o `FlywaySchemaCompatibilityTest` usa PostgreSQL 16 descartável via Testcontainers para validar as migrações e o esquema. Sem Docker, os dois casos desse teste são pulados. O schema do PostgreSQL é controlado pelas migrations Flyway.
+Os testes de persistência usam PostgreSQL 16 descartável via Testcontainers; mantenha o Docker em execução antes de rodar `./mvnw.cmd test` na raiz. Assim, desenvolvimento e produção usam o mesmo mecanismo PostgreSQL, sem H2 ou banco local persistente. O schema é controlado pelas migrations Flyway.
 
 ### Checklist manual antes de produção
 
@@ -54,8 +54,9 @@ A maioria dos testes usa H2 temporário. Rode `./mvnw.cmd test` na raiz. Com o D
 - [ ] Criar/editar/remover horários e bloqueios; confirmar atualização após recarregar a web.
 - [ ] Testar reagendamento, cancelamento, início, conclusão e não comparecimento com transições válidas e inválidas.
 - [ ] Conferir catálogo, equipe, clientes, dados da barbearia, comissões e preferências/histórico de notificações por papel.
+- [ ] Configurar Resend com chave e remetente de domínio verificado antes de habilitar os envios; recuperação de senha, confirmações, lembretes, cancelamentos e aniversários usam somente esse provedor.
 - [ ] Testar web em `http://localhost:5173` e app Expo no emulador Android apontando à mesma API e aos mesmos dados locais.
-- [ ] Manter e-mail/WhatsApp desativados até configurar credenciais de teste dos provedores; validar o estado apresentado ao administrador.
+- [ ] Manter `APP_SCHEDULING_ENABLED` e `NOTIFICACOES_RESEND_ATIVO` desativados até validar a configuração e o remetente do Resend; notificações não serão enviadas enquanto o Resend estiver desativado.
 
 Mais detalhes de web/mobile: [frontend/README.md](frontend/README.md).
 

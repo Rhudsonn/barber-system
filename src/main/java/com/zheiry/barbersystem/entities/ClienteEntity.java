@@ -2,7 +2,6 @@ package com.zheiry.barbersystem.entities;
 
 import com.zheiry.barbersystem.enums.NivelAcesso;
 import com.zheiry.barbersystem.enums.Status;
-import com.zheiry.barbersystem.enums.CanalNotificacao;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -40,9 +39,8 @@ public class ClienteEntity {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "canal_notificacao", length = 20)
-    private CanalNotificacao canalNotificacao;
+    private String canalNotificacao;
 
     @Column(name = "notificacoes_autorizadas", nullable = false)
     private boolean notificacoesAutorizadas = false;
@@ -126,9 +124,9 @@ public class ClienteEntity {
         return status;
     }
 
-    public CanalNotificacao getCanalNotificacao() { return canalNotificacao; }
+    public String getCanalNotificacao() { return canalNotificacao; }
 
-    public void setCanalNotificacao(CanalNotificacao canalNotificacao) { this.canalNotificacao = canalNotificacao; }
+    public void setCanalNotificacao(String canalNotificacao) { this.canalNotificacao = canalNotificacao; }
 
     public boolean isNotificacoesAutorizadas() { return notificacoesAutorizadas; }
 

@@ -30,6 +30,9 @@ public interface AgendamentoRepository extends JpaRepository<AgendamentoEntity, 
 
     List<AgendamentoEntity> findByClienteIdAndStatusAgendamentoIn(Long clienteId, List<StatusAgendamento> status);
 
+    List<AgendamentoEntity> findByDataHoraInicioAfterAndStatusAgendamentoIn(
+            LocalDateTime dataHora, List<StatusAgendamento> status);
+
     // Lista agendamentos de um barbeiro (paginado)
     Page<AgendamentoEntity> findByBarbeiroId(Long barbeiroId, Pageable pageable);
 

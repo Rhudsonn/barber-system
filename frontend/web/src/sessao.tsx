@@ -7,9 +7,9 @@ type Contexto = { sessao: Sessao | null; entrar: (s: Sessao) => void; sair: () =
 const SessaoContexto = createContext<Contexto | null>(null)
 
 export function ProvedorSessao({ children }: { children: ReactNode }) {
-  const [sessao, setSessao] = useState<Sessao | null>(() => { try { return JSON.parse(localStorage.getItem(chave) || 'null') as Sessao | null } catch { return null } })
-  const entrar = (s: Sessao) => { localStorage.setItem(chave, JSON.stringify(s)); setSessao(s) }
-  const sair = () => { localStorage.removeItem(chave); setSessao(null) }
+  const [sessao, setSessao] = useState<Sessao | null>(() => { try { return JSON.parse(sessionStorage.getItem(chave) || 'null') as Sessao | null } catch { return null } })
+  const entrar = (s: Sessao) => { sessionStorage.setItem(chave, JSON.stringify(s)); setSessao(s) }
+  const sair = () => { sessionStorage.removeItem(chave); setSessao(null) }
   const valor = useMemo(() => ({ sessao, entrar, sair }), [sessao])
   return <SessaoContexto.Provider value={valor}>{children}</SessaoContexto.Provider>
 }

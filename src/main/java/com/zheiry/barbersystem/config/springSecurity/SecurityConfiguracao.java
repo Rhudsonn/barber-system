@@ -17,6 +17,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Arrays;
 
@@ -27,12 +29,25 @@ public class SecurityConfiguracao {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+    private final Environment environment;
     @Value("${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
     private String origensPermitidas;
 
-    public SecurityConfiguracao(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfiguracao(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter,
+                                Environment environment) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    void validarCorsDeProducao() {
+        if (!Arrays.asList(environment.getActiveProfiles()).contains("prod")) return;
+        List<String> origens = Arrays.stream(origensPermitidas.split(","))
+                .map(String::trim).filter(origem -> !origem.isEmpty()).toList();
+        if (origens.isEmpty() || origens.stream().anyMatch(origem -> !origem.startsWith("https://") || origem.contains("*"))) {
+            throw new IllegalStateException("Em produção, CORS_ALLOWED_ORIGINS deve conter apenas origens HTTPS exatas.");
+        }
     }
 
     @Bean
@@ -66,6 +81,8 @@ public class SecurityConfiguracao {
                         // Cadastro de cliente é público (tela de login).
                         .requestMatchers(HttpMethod.POST, "/clientes").permitAll()
                         .requestMatchers(HttpMethod.GET, "/barbearias/principal", "/servicos/lista/ativos", "/barbeiros/ativos").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/barbearias/principal/administracao", "/barbearias", "/barbearias/{id}").hasRole("ADMINISTRADOR")
 
                         .requestMatchers(HttpMethod.GET,"/clientes/ativos").hasAnyRole("ADMINISTRADOR", "BARBEIRO") //.hasAnyRole - aceita mais de uma role_
                         .requestMatchers(HttpMethod.GET, "/clientes/inativos").hasRole("ADMINISTRADOR")
@@ -112,7 +129,7 @@ public class SecurityConfiguracao {
                 .map(String::trim).filter(origem -> !origem.isEmpty()).toList());
         configuracao.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuracao.setExposedHeaders(List.of("Authorization"));
+        configuracao.setExposedHeaders(List.of("Authorization", "Retry-After"));
         configuracao.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuracao);

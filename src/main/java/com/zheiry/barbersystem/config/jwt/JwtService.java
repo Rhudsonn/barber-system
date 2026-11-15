@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.annotation.PostConstruct;
 
 import javax.crypto.SecretKey;
@@ -23,10 +25,17 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expirationMs;
 
+    @Autowired(required = false)
+    private Environment environment;
+
     @PostConstruct
     void validarConfiguracao() {
         if (secretKey == null || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalStateException("JWT_SECRET deve conter pelo menos 32 bytes.");
+        }
+        if (environment != null && java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod")
+                && secretKey.toLowerCase(java.util.Locale.ROOT).contains("replace-with")) {
+            throw new IllegalStateException("Defina um JWT_SECRET aleatório e exclusivo antes de iniciar em produção.");
         }
         if (expirationMs <= 0) {
             throw new IllegalStateException("JWT_EXPIRATION deve ser maior que zero.");

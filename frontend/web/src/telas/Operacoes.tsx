@@ -6,9 +6,8 @@ import { Botao, Campo, Cartao, Carregando, EstadoVazio, Seletor, Titulo } from '
 
 type Bloqueio = { id: number; barbeiroId: number; nomeBarbeiro: string; dataInicio: string; dataFim: string; motivo: string }
 type Horario = { id: number; barbeariaId: number; barbeariaNomeFantasia: string; diaSemana: string; horarioInicio: string; horarioFim: string }
-type Preferencia = { canal: 'EMAIL' | 'WHATSAPP' | null; autorizada: boolean }
-type Notificacao = { id: number; agendamentoId: number; tipo: string; canal: string; status: string; programadaPara: string; enviadaEm?: string; quantidadeTentativas: number; erro?: string }
-type Integracoes = { resend: string; whatsappCloudApi: string }
+type Notificacao = { id: number; agendamentoId: number | null; tipo: string; canal: string; status: string; programadaPara: string; enviadaEm?: string; quantidadeTentativas: number; erro?: string }
+type Integracoes = { resend: string }
 const dias = [{ id: 'SEGUNDA', nome: 'Segunda-feira' }, { id: 'TERCA', nome: 'Terça-feira' }, { id: 'QUARTA', nome: 'Quarta-feira' }, { id: 'QUINTA', nome: 'Quinta-feira' }, { id: 'SEXTA', nome: 'Sexta-feira' }, { id: 'SABADO', nome: 'Sábado' }, { id: 'DOMINGO', nome: 'Domingo' }]
 
 export function Bloqueios({ sessao }: { sessao: Sessao }) {
@@ -47,12 +46,14 @@ export function HorariosFuncionamento({ sessao, barbearia }: { sessao: Sessao; b
 }
 
 export function Notificacoes({ sessao }: { sessao: Sessao }) {
-  const [preferencia, setPreferencia] = useState<Preferencia | null>(null)
   const [historico, setHistorico] = useState<Notificacao[]>([])
-  const [integracoes, setIntegracoes] = useState<Integracoes | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [integracao, setIntegracao] = useState<Integracoes | null>(null)
   const cliente = sessao.perfil === 'CLIENTE'
-  useEffect(() => { if (cliente) void Promise.all([requisicao<Preferencia>('/clientes/meu-perfil/notificacoes', {}, sessao).then(setPreferencia), requisicao<Notificacao[]>('/clientes/meu-perfil/notificacoes/historico', {}, sessao).then(setHistorico)]).catch(e => toast.error(e.message)); else if (sessao.perfil === 'ADMINISTRADOR') void requisicao<Integracoes>('/notificacoes/integracoes', {}, sessao).then(setIntegracoes).catch(e => toast.error(e.message)) }, [cliente, sessao])
-  async function salvar(e: FormEvent) { e.preventDefault(); if (!preferencia) return; setBusy(true); try { setPreferencia(await requisicao<Preferencia>('/clientes/meu-perfil/notificacoes', { method: 'PUT', body: JSON.stringify(preferencia) }, sessao)); toast.success('Preferência atualizada.') } catch (err) { toast.error(err instanceof Error ? err.message : 'Falha ao salvar preferência.') } finally { setBusy(false) } }
-  return <><Titulo titulo="Notificações" descricao={cliente ? 'Escolha como deseja receber atualizações dos seus agendamentos.' : 'Estado das integrações de envio configuradas no servidor.'}/>{cliente && <><Cartao><form onSubmit={salvar} className="formulario-grade"><Seletor rotulo="Canal preferido" required value={preferencia?.canal ?? 'EMAIL'} onChange={e => setPreferencia({ canal: e.target.value as Preferencia['canal'], autorizada: preferencia?.autorizada ?? false })}><option value="EMAIL">E-mail</option><option value="WHATSAPP">WhatsApp</option></Seletor><label className="check-filtro"><input type="checkbox" checked={preferencia?.autorizada ?? false} onChange={e => setPreferencia({ canal: preferencia?.canal ?? 'EMAIL', autorizada: e.target.checked })}/> Autorizo o envio de notificações</label><Botao carregando={busy} disabled={!preferencia}>Salvar preferência</Botao></form></Cartao><Cartao className="margem-topo"><h2>Histórico de envios</h2>{historico.length ? <div className="tabela-wrap"><table><thead><tr><th>Agendamento</th><th>Tipo</th><th>Canal</th><th>Status</th><th>Programada</th><th>Enviada</th><th>Tentativas</th><th>Detalhe</th></tr></thead><tbody>{historico.map(n => <tr key={n.id}><td>#{n.agendamentoId}</td><td>{n.tipo}</td><td>{n.canal}</td><td>{n.status}</td><td>{new Date(n.programadaPara).toLocaleString('pt-BR')}</td><td>{n.enviadaEm ? new Date(n.enviadaEm).toLocaleString('pt-BR') : '—'}</td><td>{n.quantidadeTentativas}</td><td>{n.erro || '—'}</td></tr>)}</tbody></table></div> : <EstadoVazio texto="Nenhuma notificação encontrada."/>}</Cartao></>}{sessao.perfil === 'ADMINISTRADOR' && <Cartao>{integracoes ? <div className="tabela-wrap"><table><thead><tr><th>Provedor</th><th>Estado</th></tr></thead><tbody><tr><td>E-mail (Resend)</td><td>{integracoes.resend}</td></tr><tr><td>WhatsApp Cloud API</td><td>{integracoes.whatsappCloudApi}</td></tr></tbody></table></div> : <Carregando texto="Consultando integrações…"/>}</Cartao>}</>
+  useEffect(() => {
+    if (cliente) void requisicao<Notificacao[]>('/clientes/meu-perfil/notificacoes/historico', {}, sessao).then(setHistorico).catch(e => toast.error(e.message))
+    else if (sessao.perfil === 'ADMINISTRADOR') void requisicao<Integracoes>('/notificacoes/integracoes', {}, sessao).then(setIntegracao).catch(e => toast.error(e.message))
+  }, [cliente, sessao])
+  return <><Titulo titulo="Notificações" descricao={cliente ? 'Histórico de notificações enviadas para seu e-mail.' : 'Estado da integração de envio configurada no servidor.'}/>{cliente && <Cartao><h2>Histórico de envios</h2>{historico.length ? <div className="tabela-wrap"><table><thead><tr><th>Agendamento</th><th>Tipo</th><th>Canal</th><th>Status</th><th>Programada</th><th>Enviada</th><th>Tentativas</th><th>Detalhe</th></tr></thead><tbody>{historico.map(n => <tr key={n.id}><td>{n.agendamentoId ? `#${n.agendamentoId}` : '—'}</td><td>{n.tipo}</td><td>{rotuloCanal(n.canal)}</td><td>{n.status}</td><td>{new Date(n.programadaPara).toLocaleString('pt-BR')}</td><td>{n.enviadaEm ? new Date(n.enviadaEm).toLocaleString('pt-BR') : '—'}</td><td>{n.quantidadeTentativas}</td><td>{n.erro || '—'}</td></tr>)}</tbody></table></div> : <EstadoVazio texto="Nenhuma notificação encontrada."/>}</Cartao>}{sessao.perfil === 'ADMINISTRADOR' && <Cartao>{integracao ? <div className="tabela-wrap"><table><thead><tr><th>Provedor</th><th>Estado</th></tr></thead><tbody><tr><td>E-mail (Resend)</td><td>{integracao.resend}</td></tr></tbody></table></div> : <Carregando texto="Consultando integração…"/>}</Cartao>}</>
 }
+
+function rotuloCanal(canal: string) { return canal === 'EMAIL' ? 'E-mail' : 'Canal legado' }

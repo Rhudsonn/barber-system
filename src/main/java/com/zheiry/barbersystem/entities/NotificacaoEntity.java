@@ -1,6 +1,5 @@
 package com.zheiry.barbersystem.entities;
 
-import com.zheiry.barbersystem.enums.CanalNotificacao;
 import com.zheiry.barbersystem.enums.StatusNotificacao;
 import com.zheiry.barbersystem.enums.TipoNotificacao;
 import jakarta.persistence.*;
@@ -20,16 +19,15 @@ public class NotificacaoEntity {
     @Column(name = "cliente_id", nullable = false)
     private Long clienteId;
 
-    @Column(name = "agendamento_id", nullable = false)
+    @Column(name = "agendamento_id")
     private Long agendamentoId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private TipoNotificacao tipo;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private CanalNotificacao canal;
+    private String canal;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -47,10 +45,10 @@ public class NotificacaoEntity {
     @Column(name = "nome_barbearia", nullable = false, length = 150)
     private String nomeBarbearia;
 
-    @Column(name = "nome_servico", nullable = false, length = 150)
+    @Column(name = "nome_servico", length = 150)
     private String nomeServico;
 
-    @Column(name = "nome_barbeiro", nullable = false, length = 150)
+    @Column(name = "nome_barbeiro", length = 150)
     private String nomeBarbeiro;
 
     @Column(name = "data_hora_agendamento", nullable = false)
@@ -87,8 +85,8 @@ public class NotificacaoEntity {
     public void setAgendamentoId(Long agendamentoId) { this.agendamentoId = agendamentoId; }
     public TipoNotificacao getTipo() { return tipo; }
     public void setTipo(TipoNotificacao tipo) { this.tipo = tipo; }
-    public CanalNotificacao getCanal() { return canal; }
-    public void setCanal(CanalNotificacao canal) { this.canal = canal; }
+    public String getCanal() { return canal; }
+    public void setCanal(String canal) { this.canal = canal; }
     public StatusNotificacao getStatus() { return status; }
     public void setStatus(StatusNotificacao status) { this.status = status; }
     public String getChaveIdempotencia() { return chaveIdempotencia; }

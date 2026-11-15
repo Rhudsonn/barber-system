@@ -2,8 +2,10 @@ package com.zheiry.barbersystem.mappers;
 
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaAtualizaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaDto;
+import com.zheiry.barbersystem.dto.barbearia.BarbeariaPublicaDto;
 import com.zheiry.barbersystem.dto.barbearia.BarbeariaSaidaDto;
 import com.zheiry.barbersystem.entities.BarbeariaEntity;
+import com.zheiry.barbersystem.util.TelefoneWhatsApp;
 
 import java.util.List;
 
@@ -21,7 +23,7 @@ public class BarbeariaMapper {
         entity.setRazaoSocial(dto.razaoSocial());
         entity.setCnpj(dto.cnpj());
         entity.setTelefone(dto.telefone());
-        entity.setWhatsapp(dto.whatsapp());
+        entity.setWhatsapp(TelefoneWhatsApp.normalizar(dto.whatsapp()));
         entity.setInstagram(dto.instagram());
         entity.setEmail(dto.email());
         entity.setEndereco(dto.endereco());
@@ -30,6 +32,12 @@ public class BarbeariaMapper {
         entity.setCep(dto.cep());
         entity.setDescricao(dto.descricao());
         return entity;
+    }
+
+    public static BarbeariaPublicaDto toPublicaDto(BarbeariaEntity entity) {
+        if (entity == null) return null;
+        return new BarbeariaPublicaDto(entity.getId(), entity.getNomeFantasia(), entity.getLogoUrl(),
+                entity.getDescricao(), entity.getEndereco(), entity.getCidade(), entity.getWhatsapp());
     }
 
     // Entity → SaidaDto (com horários)
@@ -92,7 +100,7 @@ public class BarbeariaMapper {
         if (dto.nomeFantasia() != null) entity.setNomeFantasia(dto.nomeFantasia());
         if (dto.razaoSocial() != null) entity.setRazaoSocial(dto.razaoSocial());
         if (dto.telefone() != null) entity.setTelefone(dto.telefone());
-        if (dto.whatsapp() != null) entity.setWhatsapp(dto.whatsapp());
+        if (dto.whatsapp() != null) entity.setWhatsapp(TelefoneWhatsApp.normalizar(dto.whatsapp()));
         if (dto.instagram() != null) entity.setInstagram(dto.instagram());
         if (dto.email() != null) entity.setEmail(dto.email());
         if (dto.endereco() != null) entity.setEndereco(dto.endereco());

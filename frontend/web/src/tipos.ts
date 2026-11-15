@@ -1,7 +1,8 @@
 export type Perfil = 'CLIENTE' | 'BARBEIRO' | 'ADMINISTRADOR'
 export type Sessao = { token: string; tipo: string; usuarioId: number; perfil: Perfil }
 export type PerfilUsuario = { id: number; nome: string; email: string; telefone?: string; dataNascimento?: string; especialidade?: string; fotoUrl?: string; status?: string }
-export type Barbearia = { id: number; nomeFantasia: string; razaoSocial?: string; cnpj?: string; cep?: string; telefone?: string; whatsapp?: string; instagram?: string; email?: string; endereco?: string; cidade?: string; estado?: string; descricao?: string; logoUrl?: string; horarios?: { diaSemana: string; horaAbertura: string; horaFechamento: string; fechado: boolean }[] }
+export type BarbeariaPublica = { id: number; nomeFantasia: string; logoUrl?: string; descricao?: string; endereco?: string; cidade?: string; whatsapp?: string }
+export type Barbearia = BarbeariaPublica & { razaoSocial?: string; cnpj?: string; cep?: string; telefone?: string; instagram?: string; email?: string; estado?: string; horarios?: { diaSemana: string; horaAbertura: string; horaFechamento: string; fechado: boolean }[] }
 export type Servico = { id: number; nome: string; descrica?: string; categoria: string; preco: number; duracaoEmMinutos: number; porcentagemBarbearia?: number }
 export type Barbeiro = { id: number; nome: string; especialidade?: string; fotoUrl?: string; telefone?: string; status?: string }
 export type Cliente = { id: number; nome: string; telefone?: string; email?: string; status?: string }

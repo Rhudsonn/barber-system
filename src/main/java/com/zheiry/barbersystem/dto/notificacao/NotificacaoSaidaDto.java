@@ -1,6 +1,5 @@
 package com.zheiry.barbersystem.dto.notificacao;
 
-import com.zheiry.barbersystem.enums.CanalNotificacao;
 import com.zheiry.barbersystem.enums.StatusNotificacao;
 import com.zheiry.barbersystem.enums.TipoNotificacao;
 
@@ -10,7 +9,7 @@ public record NotificacaoSaidaDto(
         Long id,
         Long agendamentoId,
         TipoNotificacao tipo,
-        CanalNotificacao canal,
+        String canal,
         StatusNotificacao status,
         LocalDateTime programadaPara,
         LocalDateTime tentadaEm,
