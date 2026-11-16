@@ -97,3 +97,25 @@ O histórico segue o acesso ao atendimento. A aba de comissões aparece para bar
 - Mobile: `npm run typecheck`
 - Backend e migrations: `./mvnw.cmd test` na raiz, com Docker em execução; os testes usam PostgreSQL temporário via Testcontainers.
 - A validação ponta a ponta deve usar contas e dados sintéticos no PostgreSQL local, nunca dados de produção.
+## Implantação do frontend web
+
+O frontend web é uma SPA estática. Use o Netlify com as seguintes configurações:
+
+| Campo | Valor |
+| --- | --- |
+| Base directory (Root Directory) | `frontend/web` |
+| Package directory | em branco |
+| Build command | `npm run build` |
+| Publish directory | `dist`, relativo à base |
+| Node.js | defina `NODE_VERSION=22` no ambiente de build |
+| URL da API | `VITE_API_URL=https://api.zheiry.com.br` no contexto Production |
+
+O modo padrão de `npm run build` lê `web/.env.production`. Para desenvolvimento, copie `web/.env.example` para `web/.env.local` e execute `npm ci` e `npm run dev` em `web`. O Vite embute `VITE_API_URL` no JavaScript. Alterações exigem novo build. Variáveis `VITE_*` são públicas.
+
+Após autorização para publicar, adicione `app.zheiry.com.br` como domínio de produção no Netlify. No DNS externo, crie um CNAME de `app` para o hostname `<site>.netlify.app` atribuído ao projeto. Aguarde a propagação e confirme a emissão do certificado HTTPS. O Vite copia `web/public/_redirects` para `dist/` e o Netlify usa essa regra para servir a SPA nas URLs internas, preservando os arquivos estáticos existentes.
+
+No Railway, confirme que `CORS_ALLOWED_ORIGINS` inclui a origem exata `https://app.zheiry.com.br` e que `PASSWORD_RESET_URL` aponta para `https://app.zheiry.com.br/redefinir-senha`. O preflight de `POST /login` deve autorizar a origem e o cabeçalho `Content-Type`. O de rotas protegidas também deve permitir `Authorization`. Valide esses requisitos antes da publicação.
+
+O build gera `manifest.webmanifest`, `sw.js`, o runtime Workbox e os ícones da PWA. Sirva esses arquivos na raiz do domínio via HTTPS. O precache contempla os arquivos estáticos, e os fluxos que consultam a API dependem de conexão. Após publicar, verifique o registro do service worker, a instalação em um dispositivo móvel e o carregamento direto de `/redefinir-senha` e `/painel/agendamentos`.
+
+[Vite no Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/vite/) · [Domínios no Netlify](https://docs.netlify.com/manage/domains/get-started-with-domains/)

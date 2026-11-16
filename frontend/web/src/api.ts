@@ -1,6 +1,7 @@
 import type { Sessao } from './tipos'
 
-const base = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8080'
+const base = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '')
+  || (import.meta.env.MODE === 'production' ? 'https://api.zheiry.com.br' : 'http://localhost:8080')
 
 export class ErroRequisicao extends Error { constructor(message: string, public status: number) { super(message) } }
 
