@@ -99,23 +99,26 @@ O histórico segue o acesso ao atendimento. A aba de comissões aparece para bar
 - A validação ponta a ponta deve usar contas e dados sintéticos no PostgreSQL local, nunca dados de produção.
 ## Implantação do frontend web
 
-O frontend web é uma SPA estática. Use o Netlify com as seguintes configurações:
+Crie um serviço separado para o frontend web no ambiente Production da Railway. Configure o serviço com os seguintes valores:
 
 | Campo | Valor |
 | --- | --- |
-| Base directory (Root Directory) | `frontend/web` |
-| Package directory | em branco |
+| Builder | Railpack |
+| Root Directory | `/frontend/web` |
 | Build command | `npm run build` |
-| Publish directory | `dist`, relativo à base |
-| Node.js | defina `NODE_VERSION=22` no ambiente de build |
-| URL da API | `VITE_API_URL=https://api.zheiry.com.br` no contexto Production |
+| Start command | `npm start` |
+| Node.js | 22.x, definido em `package.json` |
+| URL da API | `VITE_API_URL=https://api.zheiry.com.br` nas variáveis do serviço web |
+| Healthcheck Path | `/` |
 
 O modo padrão de `npm run build` lê `web/.env.production`. Para desenvolvimento, copie `web/.env.example` para `web/.env.local` e execute `npm ci` e `npm run dev` em `web`. O Vite embute `VITE_API_URL` no JavaScript. Alterações exigem novo build. Variáveis `VITE_*` são públicas.
 
-Após autorização para publicar, adicione `app.zheiry.com.br` como domínio de produção no Netlify. No DNS externo, crie um CNAME de `app` para o hostname `<site>.netlify.app` atribuído ao projeto. Aguarde a propagação e confirme a emissão do certificado HTTPS. O Vite copia `web/public/_redirects` para `dist/` e o Netlify usa essa regra para servir a SPA nas URLs internas, preservando os arquivos estáticos existentes.
+O servidor Express serve `dist` em `0.0.0.0` na porta `PORT` fornecida pela Railway. Para testar localmente, execute `npm run build` e `npm start` em `web` e acesse `http://localhost:8080`. Defina outra `PORT` se o backend local estiver usando 8080. O servidor entrega os arquivos estáticos primeiro e usa `index.html` ao abrir rotas internas da SPA. Arquivos ausentes em `/assets/` e URLs de arquivos ausentes, como `/sw.js`, retornam 404.
+
+Após autorização para publicar, adicione `app.zheiry.com.br` em Settings → Networking → Public Networking no serviço web. Crie os registros DNS exibidos pela Railway para o domínio, incluindo o CNAME de `app` e o TXT de verificação quando indicado. Aguarde a validação e confirme o certificado HTTPS. Se a interface solicitar Target Port, use a mesma porta definida por `PORT`.
 
 No Railway, confirme que `CORS_ALLOWED_ORIGINS` inclui a origem exata `https://app.zheiry.com.br` e que `PASSWORD_RESET_URL` aponta para `https://app.zheiry.com.br/redefinir-senha`. O preflight de `POST /login` deve autorizar a origem e o cabeçalho `Content-Type`. O de rotas protegidas também deve permitir `Authorization`. Valide esses requisitos antes da publicação.
 
 O build gera `manifest.webmanifest`, `sw.js`, o runtime Workbox e os ícones da PWA. Sirva esses arquivos na raiz do domínio via HTTPS. O precache contempla os arquivos estáticos, e os fluxos que consultam a API dependem de conexão. Após publicar, verifique o registro do service worker, a instalação em um dispositivo móvel e o carregamento direto de `/redefinir-senha` e `/painel/agendamentos`.
 
-[Vite no Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/vite/) · [Domínios no Netlify](https://docs.netlify.com/manage/domains/get-started-with-domains/)
+[Build na Railway](https://docs.railway.com/builds/build-configuration) · [Rede pública na Railway](https://docs.railway.com/networking/public-networking)
